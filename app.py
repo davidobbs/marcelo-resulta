@@ -153,6 +153,7 @@ def main():
     - **🔮 Projeções 2035**: Análises e projeções de longo prazo
     - **📋 Dashboard KPIs**: Indicadores-chave de performance
     - **🎯 Análise de Viabilidade**: ROI, TIR, VPL e análise de sensibilidade
+    - **💎 Valuation**: Avaliação empresarial com IRR, Payback e VPL editáveis
     """)
     
     # Informações importantes

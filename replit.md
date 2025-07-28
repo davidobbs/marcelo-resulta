@@ -31,14 +31,28 @@ Preferred communication style: Simple, everyday language.
 - **Impostos & Tributação** (`pages/4_🏛️_Impostos_Tributacao.py`): Tax analysis
 - **Dashboard KPIs** (`pages/6_📋_Dashboard_KPIs.py`): Key performance indicators
 - **Análise de Viabilidade** (`pages/7_🎯_Analise_Viabilidade.py`): Investment viability analysis
+- **Valuation** (`pages/8_💎_Valuation.py`): Company valuation with editable IRR, Payback, and NPV calculations
 
 ## Key Components
 
 ### Market Configuration System
 - **File**: `utils/market_configs.py`
 - **Purpose**: Stores market-specific parameters for different regions
-- **Markets Supported**: Brazil and Europe with distinct tax rates, inflation, hourly rates, and operational parameters
+- **Markets Supported**: Brazil, Europe, and UAE with distinct tax rates, inflation, hourly rates, and operational parameters
 - **Configuration Types**: Tax rates, operational costs, growth potential, regulatory complexity
+
+### Valuation Module
+- **File**: `pages/8_💎_Valuation.py`
+- **Purpose**: Comprehensive company valuation with scenario analysis
+- **Features**: 
+  - Editable financial parameters for full control
+  - Dual scenario analysis (Realistic vs Optimistic)
+  - IRR calculations for 5-year and perpetuity horizons
+  - Simple and discounted payback period calculations
+  - NPV (VPL) analysis with customizable discount rates
+  - Consideration of judicial liabilities and credit recovery
+  - Sensitivity analysis for key valuation drivers
+  - Export functionality for valuation reports
 
 ### Financial Calculation Engine
 - **File**: `utils/financial_calculations.py`
