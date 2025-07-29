@@ -1,94 +1,69 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useCallback } from 'react';
 import { useAppStore, useFinancialData } from '@/stores/useAppStore';
 import {
-  calculateNPV,
-  calculateIRR,
-  calculatePaybackPeriod,
-  calculateROI,
   calculateFinancialRatios,
   calculateTaxBurden,
   calculateInvestmentRequirements,
   calculateViabilityMetrics,
-  generateCashFlows,
-  enhancedSensitivityAnalysis,
-  advancedMonteCarloAnalysis
-} from '@/utils/financial-calculations';
+} from '@/utils/financials/index';
+import { FinancialProjection, InvestmentAnalysis, KPIData, StrategicKPIs, DetailedRevenue, DetailedOperationalCosts } from '@/types';
+import type { CustomField } from '@/types';
 
 export function useFinancialCalculations() {
-  const { club, market, setProjections, setKPIs, setAnalysis } = useAppStore();
+  const { 
+    club, 
+    market, 
+    setProjections, 
+    setKPIs, 
+    setAnalysis,
+    setStrategicKPIs 
+  } = useAppStore();
   const financialData = useFinancialData();
 
   // =====================================================
   // CÁLCULOS AUTOMÁTICOS DE RECEITAS
   // =====================================================
   
-  // Receita total detalhada com cálculos automáticos
   const revenueCalculations = useMemo(() => {
     if (!financialData?.revenues) {
       return {
-        fieldRental: 0,
-        membership: 0,
-        sponsorship: 0,
-        soccerSchool: 0,
-        merchandise: 0,
-        events: 0,
-        foodBeverage: 0,
-        other: 0,
-        monthly: 0,
-        annual: 0
+        fieldRental: 0, membership: 0, sponsorship: 0, soccerSchool: 0,
+        merchandise: 0, events: 0, foodBeverage: 0, other: 0,
+        monthly: 0, annual: 0,
+        breakdown: {}
       };
     }
 
-    // Aluguel de Campos - Cálculos automáticos
-    const fieldRental = Object.values(financialData.revenues.fieldRental || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
+    const getCategoryTotal = (category: Record<string, number>): number => 
+      Object.values(category || {}).reduce((sum: number, val: unknown) => sum + (typeof val === 'number' ? val : 0), 0);
 
-    // Mensalidades e Associações
-    const membership = Object.values(financialData.revenues.membership || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
-
-    // Patrocínios
-    const sponsorship = Object.values(financialData.revenues.sponsorship || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
-
-    // Escolinha de Futebol
-    const soccerSchool = Object.values(financialData.revenues.soccerSchool || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
-
-    // Outras categorias
-    const merchandise = Object.values(financialData.revenues.merchandise || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
-
-    const events = Object.values(financialData.revenues.events || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
-
-    const foodBeverage = Object.values(financialData.revenues.foodBeverage || {})
-      .reduce((sum: number, val: any) => sum + (typeof val === 'number' ? val : 0), 0);
-
-    const other = Array.isArray(financialData.revenues.customRevenues) 
-      ? financialData.revenues.customRevenues.reduce((sum: number, item: any) => sum + (item.value || 0), 0)
+    const fieldRental = getCategoryTotal(financialData.revenues.fieldRental);
+    const membership = getCategoryTotal(financialData.revenues.membership);
+    const sponsorship = getCategoryTotal(financialData.revenues.sponsorship);
+    const soccerSchool = getCategoryTotal(financialData.revenues.soccerSchool);
+    const merchandise = getCategoryTotal(financialData.revenues.merchandise);
+    const events = getCategoryTotal(financialData.revenues.events);
+    const foodBeverage = getCategoryTotal(financialData.revenues.foodBeverage);
+    
+    const other = Array.isArray(financialData.revenues.customRevenues)
+      ? (financialData.revenues.customRevenues as CustomField[])
+          .reduce((sum: number, item: CustomField) => sum + (typeof item.value === 'number' ? item.value : 0), 0)
       : 0;
 
     const monthly = fieldRental + membership + sponsorship + soccerSchool + merchandise + events + foodBeverage + other;
     const annual = monthly * 12;
 
+    const createBreakdown = (value: number) => ({ value, percentage: monthly > 0 ? (value / monthly) * 100 : 0 });
+
     return {
-      fieldRental,
-      membership,
-      sponsorship,
-      soccerSchool,
-      merchandise,
-      events,
-      foodBeverage,
-      other,
-      monthly,
-      annual,
+      fieldRental, membership, sponsorship, soccerSchool, merchandise, events, foodBeverage, other,
+      monthly, annual,
       breakdown: {
-        fieldRental: { value: fieldRental, percentage: monthly > 0 ? (fieldRental / monthly) * 100 : 0 },
-        membership: { value: membership, percentage: monthly > 0 ? (membership / monthly) * 100 : 0 },
-        sponsorship: { value: sponsorship, percentage: monthly > 0 ? (sponsorship / monthly) * 100 : 0 },
-        soccerSchool: { value: soccerSchool, percentage: monthly > 0 ? (soccerSchool / monthly) * 100 : 0 },
-        other: { value: merchandise + events + foodBeverage + other, percentage: monthly > 0 ? ((merchandise + events + foodBeverage + other) / monthly) * 100 : 0 }
+        fieldRental: createBreakdown(fieldRental),
+        membership: createBreakdown(membership),
+        sponsorship: createBreakdown(sponsorship),
+        soccerSchool: createBreakdown(soccerSchool),
+        other: createBreakdown(merchandise + events + foodBeverage + other)
       }
     };
   }, [financialData?.revenues]);
@@ -100,24 +75,19 @@ export function useFinancialCalculations() {
   const costCalculations = useMemo(() => {
     if (!financialData?.costs) {
       return {
-        personnel: 0,
-        operational: 0,
-        monthly: 0,
-        annual: 0,
+        personnel: 0, operational: 0, monthly: 0, annual: 0,
         breakdown: {}
       };
     }
 
-    // Custos de Pessoal
-    const personnel = Object.values(financialData.costs.personnel || {}).reduce((total: number, category: any) => {
+    const personnel = Object.values(financialData.costs.personnel || {}).reduce((total: number, category: unknown) => {
       if (typeof category === 'object' && category !== null) {
-        return total + Object.values(category).reduce((sum: number, val: any) => 
+        return total + Object.values(category).reduce((sum: number, val: unknown) => 
           sum + (typeof val === 'number' ? val : 0), 0);
       }
       return total + (typeof category === 'number' ? category : 0);
     }, 0);
 
-    // Custos Operacionais (todas as outras categorias)
     const operationalCategories = [
       'facilities', 'utilities', 'medical', 'transportation', 'equipment',
       'marketing', 'administrative', 'insurance', 'regulatory', 'technology',
@@ -125,9 +95,9 @@ export function useFinancialCalculations() {
     ];
 
     const operational = operationalCategories.reduce((total: number, categoryKey: string) => {
-      const category = (financialData.costs as any)[categoryKey];
+      const category = (financialData.costs as Record<string, unknown>)[categoryKey];
       if (typeof category === 'object' && category !== null) {
-        return total + Object.values(category).reduce((sum: number, val: any) => 
+        return total + Object.values(category).reduce((sum: number, val: unknown) => 
           sum + (typeof val === 'number' ? val : 0), 0);
       }
       return total + (typeof category === 'number' ? category : 0);
@@ -136,16 +106,15 @@ export function useFinancialCalculations() {
     const monthly = personnel + operational;
     const annual = monthly * 12;
 
-    // Breakdown detalhado por categoria
-    const breakdown: any = {
+    const breakdown: Record<string, { value: number; percentage: number }> = {
       personnel: { value: personnel, percentage: monthly > 0 ? (personnel / monthly) * 100 : 0 }
     };
 
     operationalCategories.forEach(categoryKey => {
-      const category = (financialData.costs as any)[categoryKey];
+      const category = (financialData.costs as Record<string, unknown>)[categoryKey];
       let categoryTotal = 0;
       if (typeof category === 'object' && category !== null) {
-        categoryTotal = Object.values(category).reduce((sum: number, val: any) => 
+        categoryTotal = Object.values(category).reduce((sum: number, val: unknown) => 
           sum + (typeof val === 'number' ? val : 0), 0);
       } else if (typeof category === 'number') {
         categoryTotal = category;
@@ -156,13 +125,7 @@ export function useFinancialCalculations() {
       };
     });
 
-    return {
-      personnel,
-      operational,
-      monthly,
-      annual,
-      breakdown
-    };
+    return { personnel, operational, monthly, annual, breakdown };
   }, [financialData?.costs]);
 
   // =====================================================
@@ -173,36 +136,24 @@ export function useFinancialCalculations() {
     const receita = revenueCalculations.annual;
     const custos = costCalculations.annual;
     
-    // DRE Simplificada
     const receitaBruta = receita;
     const custosOperacionais = custos;
     const lucroOperacional = receitaBruta - custosOperacionais;
     
-    // Impostos
     const taxes = calculateTaxBurden(receitaBruta, lucroOperacional, market);
     const impostos = taxes.total || (lucroOperacional > 0 ? lucroOperacional * (market?.taxRate || 0.163) : 0);
     
-    // Resultado final
     const lucroLiquido = lucroOperacional - impostos;
     const ebitda = lucroOperacional;
     const ebit = lucroOperacional;
     
-    // Margens
-    const margemBruta = receitaBruta > 0 ? (lucroOperacional / receitaBruta) * 100 : 0;
-    const margemLiquida = receitaBruta > 0 ? (lucroLiquido / receitaBruta) * 100 : 0;
-    const margemEbitda = receitaBruta > 0 ? (ebitda / receitaBruta) * 100 : 0;
+    const createMargin = (value: number) => receitaBruta > 0 ? (value / receitaBruta) * 100 : 0;
 
     return {
-      receitaBruta,
-      custosOperacionais,
-      lucroOperacional,
-      impostos,
-      lucroLiquido,
-      ebitda,
-      ebit,
-      margemBruta,
-      margemLiquida,
-      margemEbitda,
+      receitaBruta, custosOperacionais, lucroOperacional, impostos, lucroLiquido, ebitda, ebit,
+      margemBruta: createMargin(lucroOperacional),
+      margemLiquida: createMargin(lucroLiquido),
+      margemEbitda: createMargin(ebitda),
       breakdown: {
         receitas: revenueCalculations.breakdown,
         custos: costCalculations.breakdown
@@ -216,28 +167,13 @@ export function useFinancialCalculations() {
   
   const cashFlowCalculations = useMemo(() => {
     const lucroLiquido = dreCalculations.lucroLiquido;
-    
-    // Fluxo operacional
     const depreciacao = costCalculations.breakdown.depreciation?.value || 0;
     const fluxoOperacional = lucroLiquido + depreciacao;
-    
-    // Investimentos
-    const investimentos = 0; // Será preenchido conforme necessário
-    
-    // Financiamentos
-    const financiamentos = 0; // Será preenchido conforme necessário
-    
-    // Fluxo livre
+    const investimentos = 0;
+    const financiamentos = 0;
     const fluxoLivre = fluxoOperacional - investimentos + financiamentos;
     
-    return {
-      fluxoOperacional,
-      investimentos,
-      financiamentos,
-      fluxoLivre,
-      saldoInicial: 0,
-      saldoFinal: fluxoLivre
-    };
+    return { fluxoOperacional, investimentos, financiamentos, fluxoLivre, saldoInicial: 0, saldoFinal: fluxoLivre };
   }, [dreCalculations, costCalculations]);
 
   // =====================================================
@@ -252,83 +188,78 @@ export function useFinancialCalculations() {
   // PROJEÇÕES AUTOMÁTICAS
   // =====================================================
   
-  const projectionCalculations = useMemo(() => {
+  const projectionCalculations = useMemo((): FinancialProjection[] => {
     const currentYear = new Date().getFullYear();
-    const projections = [];
+    const projections: FinancialProjection[] = [];
     const growthRate = market?.growthPotential || 0.12;
     const inflationRate = market?.inflationRate || 0.06;
 
     for (let year = 0; year < 12; year++) {
-      const projectedYear = currentYear + year;
-      
-      // Receitas com crescimento
       const annualRevenue = revenueCalculations.annual * Math.pow(1 + growthRate, year);
-      
-      // Custos com inflação
       const annualCosts = costCalculations.annual * Math.pow(1 + inflationRate, year);
-      
-      // Lucros
       const ebitda = annualRevenue - annualCosts;
       const taxes = Math.max(0, ebitda * (market?.taxRate || 0.163));
       const netProfit = ebitda - taxes;
-      
-      // Fluxo de caixa
+
       const cashFlow = {
         operational: netProfit,
         investment: year === 0 ? -investmentRequirements.total : 0,
         financing: 0,
         net: year === 0 ? netProfit - investmentRequirements.total : netProfit,
-        accumulated: 0 // Será calculado depois
+        accumulated: 0
       };
 
-      // Métricas financeiras
       const metrics = calculateFinancialRatios(
-        annualRevenue,
-        annualCosts,
-        investmentRequirements.total,
-        investmentRequirements.total * 0.3,
-        investmentRequirements.total * 0.7,
-        market?.taxRate || 0.163
+        annualRevenue, annualCosts, investmentRequirements.total,
+        investmentRequirements.total * 0.3, investmentRequirements.total * 0.7, market?.taxRate || 0.163
       );
+      
+      const revenueBreakdown = revenueCalculations.breakdown;
+      const detailedRevenue: DetailedRevenue = {
+        fieldRental: { total: (revenueBreakdown.fieldRental?.value || 0), regularRentals: 0, tournaments: 0, corporateEvents: 0, seasonalAdjustment: 0 },
+        membership: { total: (revenueBreakdown.membership?.value || 0), monthlyFees: 0, annualFees: 0, initationFees: 0, familyPackages: 0, corporateMembers: 0 },
+        sponsorship: { total: (revenueBreakdown.sponsorship?.value || 0), mainSponsor: 0, jerseySponsors: 0, facilityNaming: 0, equipmentSponsors: 0, eventSponsors: 0, digitalSponsors: 0 },
+        soccerSchool: { total: (revenueBreakdown.soccerSchool?.value || 0), monthlyTuition: 0, enrollmentFees: 0, camps: 0, privateClasses: 0, tournaments: 0 },
+        merchandise: { total: (revenueBreakdown.other?.value || 0), jerseys: 0, accessories: 0, souvenirs: 0, equipment: 0 },
+        events: { total: 0, corporateEvents: 0, privateParties: 0, tournaments: 0, camps: 0, other: 0 },
+        foodBeverage: { total: 0, restaurant: 0, bar: 0, snackBar: 0, catering: 0, vending: 0 },
+        other: [],
+        total: annualRevenue,
+      };
+
+      const costBreakdown = costCalculations.breakdown;
+      const detailedCosts: DetailedOperationalCosts = {
+          personnel: { total: (costBreakdown.personnel?.value || 0), technicalStaff: { total: 0, headCoach: 0, assistantCoaches: 0, physicalTrainer: 0, goalkeeper: 0, analyst: 0, other: 0 }, players: { total: 0, salaries: 0, bonuses: 0, benefits: 0, laborCharges: 0, medicalInsurance: 0 }, administrativeStaff: { total: 0, management: 0, accounting: 0, legal: 0, hr: 0, marketing: 0, other: 0 }, supportStaff: { total: 0, security: 0, cleaning: 0, maintenance: 0, reception: 0, other: 0 } },
+          facilities: { total: (costBreakdown.facilities?.value || 0), maintenance: 0, cleaning: 0, security: 0, landscaping: 0, repairs: 0 },
+          utilities: { total: (costBreakdown.utilities?.value || 0), electricity: 0, water: 0, gas: 0, internet: 0, phone: 0, waste: 0 },
+          equipment: { total: (costBreakdown.equipment?.value || 0), fieldsEquipment: 0, sportsEquipment: 0, technology: 0, vehicles: 0, other: 0 },
+          marketing: { total: (costBreakdown.marketing?.value || 0), digitalMarketing: 0, traditionalMedia: 0, events: 0, sponsorships: 0, materials: 0 },
+          administrative: { total: (costBreakdown.administrative?.value || 0), accounting: 0, legal: 0, consulting: 0, software: 0, officeSupplies: 0, banking: 0 },
+          insurance: { total: (costBreakdown.insurance?.value || 0), property: 0, liability: 0, equipmentInsurance: 0, workersCompensation: 0, other: 0 },
+          regulatory: { total: (costBreakdown.regulatory?.value || 0), licenses: 0, inspections: 0, compliance: 0, taxes: 0, other: 0 },
+          medical: { total: 0, teamDoctor: 0, physiotherapy: 0, supplements: 0, medicalExams: 0, treatments: 0 },
+          transportation: { total: 0, teamTransport: 0, accommodation: 0, meals: 0, fuel: 0, vehicleMaintenance: 0 },
+          hospitality: { total: 0, guestMeals: 0, entertainment: 0, gifts: 0, events: 0 },
+          maintenance: { total: 0, preventive: 0, corrective: 0, supplies: 0, contracts: 0 },
+          technology: { total: 0, software: 0, hardware: 0, telecommunications: 0, support: 0 },
+          other: [],
+          total: annualCosts,
+      };
 
       projections.push({
-        year: projectedYear,
-        revenue: {
-          total: annualRevenue,
-          breakdown: {
-            fieldRental: revenueCalculations.fieldRental * Math.pow(1 + growthRate, year),
-            membership: revenueCalculations.membership * Math.pow(1 + growthRate, year),
-            sponsorship: revenueCalculations.sponsorship * Math.pow(1 + growthRate, year),
-            soccerSchool: revenueCalculations.soccerSchool * Math.pow(1 + growthRate, year),
-            other: (revenueCalculations.merchandise + revenueCalculations.events + 
-                   revenueCalculations.foodBeverage + revenueCalculations.other) * Math.pow(1 + growthRate, year)
-          }
-        },
-        costs: {
-          total: annualCosts,
-          personnel: costCalculations.personnel * Math.pow(1 + inflationRate, year),
-          operational: costCalculations.operational * Math.pow(1 + inflationRate, year)
-        },
-        taxes: {
-          total: taxes,
-          rate: market?.taxRate || 0.163
-        },
+        year: currentYear + year,
+        revenue: detailedRevenue,
+        costs: detailedCosts,
+        taxes: { total: taxes, corporateTax: taxes, vat: 0, socialContributions: 0, municipalTaxes: 0 },
         cashFlow,
-        metrics: {
-          ...metrics,
-          ebitda,
-          ebitdaMargin: annualRevenue > 0 ? ebitda / annualRevenue : 0,
-          netMargin: annualRevenue > 0 ? netProfit / annualRevenue : 0,
-          grossMargin: annualRevenue > 0 ? (annualRevenue - annualCosts) / annualRevenue : 0
-        }
+        metrics: { ...metrics, ebitda, netProfit }
       });
     }
 
-    // Calcular fluxo de caixa acumulado
     let accumulated = 0;
-    projections.forEach(projection => {
-      accumulated += projection.cashFlow.net;
-      projection.cashFlow.accumulated = accumulated;
+    projections.forEach(p => {
+      accumulated += p.cashFlow.net;
+      p.cashFlow.accumulated = accumulated;
     });
 
     return projections;
@@ -341,7 +272,6 @@ export function useFinancialCalculations() {
   const viabilityAnalysis = useMemo(() => {
     const cashFlows = [-investmentRequirements.total, ...projectionCalculations.map(p => p.cashFlow.net)];
     const discountRate = market?.discountRate || 0.12;
-    
     return calculateViabilityMetrics(cashFlows, discountRate);
   }, [projectionCalculations, investmentRequirements, market]);
 
@@ -351,127 +281,122 @@ export function useFinancialCalculations() {
   
   const kpiCalculations = useMemo(() => {
     const revenue = revenueCalculations.annual;
-    const costs = costCalculations.annual;
     const assets = investmentRequirements.total;
-    const currentProjection = projectionCalculations[0];
 
-    return {
+    const financial: KPIData = {
+      revenue: { name: 'Receita Anual', value: revenue, unit: 'R$', trend: 'stable', target: 0, benchmark: 0 },
+      profitability: { name: 'Margem Líquida', value: dreCalculations.margemLiquida, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+      efficiency: { name: 'Giro do Ativo', value: assets > 0 ? revenue / assets : 0, unit: 'x', trend: 'stable', target: 0, benchmark: 0 },
+      financial: { name: 'ROE', value: assets > 0 ? dreCalculations.lucroLiquido / (assets * 0.7) : 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+    };
+
+    const strategic: StrategicKPIs = {
       financial: {
-        totalRevenue: revenue,
-        totalCosts: costs,
-        netProfit: dreCalculations.lucroLiquido,
-        ebitda: dreCalculations.ebitda,
-        grossMargin: dreCalculations.margemBruta / 100,
-        netMargin: dreCalculations.margemLiquida / 100,
-        ebitdaMargin: dreCalculations.margemEbitda / 100,
-        roa: assets > 0 ? dreCalculations.lucroLiquido / assets : 0,
-        roe: assets > 0 ? dreCalculations.lucroLiquido / (assets * 0.7) : 0
+        revenueGrowthRate: { name: 'Crescimento da Receita', value: market.growthPotential, unit: '%', trend: 'up', target: 0.1, benchmark: 0.08 },
+        profitMargin: { name: 'Margem de Lucro', value: dreCalculations.margemLiquida / 100, unit: '%', trend: 'up', target: 0.15, benchmark: 0.12 },
+        cashFlowMargin: { name: 'Margem de Fluxo de Caixa', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        returnOnAssets: { name: 'ROA', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        returnOnEquity: { name: 'ROE', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        debtToEquityRatio: { name: 'Dívida/PL', value: 0, unit: 'x', trend: 'stable', target: 0, benchmark: 0 },
+        breakEvenPoint: { name: 'Ponto de Equilíbrio', value: 0, unit: 'meses', trend: 'stable', target: 0, benchmark: 0 },
       },
       operational: {
-        fieldUtilization: 0.65, // Estimativa
-        averageTicket: revenue > 0 ? revenue / (club.numFields * 365 * 8) : 0,
-        occupancyRate: 0.65,
-        revenuePerField: revenue / Math.max(club.numFields, 1),
-        costPerField: costs / Math.max(club.numFields, 1)
+        fieldUtilizationRate: { name: 'Taxa de Ocupação', value: 0.65, unit: '%', trend: 'up', target: 0.75, benchmark: 0.7 },
+        averageRevenuePerField: { name: 'Receita por Campo', value: 0, unit: 'R$', trend: 'stable', target: 0, benchmark: 0 },
+        membershipRetentionRate: { name: 'Retenção de Membros', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        staffProductivity: { name: 'Produtividade Equipe', value: 0, unit: 'x', trend: 'stable', target: 0, benchmark: 0 },
+        maintenanceCostRatio: { name: 'Custo Manut./Receita', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        energyEfficiency: { name: 'Eficiência Energética', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
       },
-      investment: {
-        npv: viabilityAnalysis.npv,
-        irr: viabilityAnalysis.irr,
-        paybackPeriod: viabilityAnalysis.paybackPeriod,
-        roi: viabilityAnalysis.roi,
-        breakEvenPoint: viabilityAnalysis.breakEvenPoint
+      customer: {
+        customerSatisfactionScore: { name: 'CSAT', value: 85, unit: '%', trend: 'up', target: 90, benchmark: 80 },
+        netPromoterScore: { name: 'NPS', value: 0, unit: '', trend: 'stable', target: 0, benchmark: 0 },
+        averageCustomerLifetime: { name: 'LTV', value: 0, unit: 'meses', trend: 'stable', target: 0, benchmark: 0 },
+        membershipGrowthRate: { name: 'Cresc. Membros', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        churnRate: { name: 'Churn', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        averageRevenuePerCustomer: { name: 'ARPU', value: 0, unit: 'R$', trend: 'stable', target: 0, benchmark: 0 },
+      },
+      growth: {
+        membershipGrowth: { name: 'Crescimento de Membros', value: 0.1, unit: '%', trend: 'up', target: 0.12, benchmark: 0.09 },
+        revenueGrowth: { name: 'Cresc. Receita', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        marketExpansion: { name: 'Expansão de Mercado', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        facilityExpansion: { name: 'Expansão de Campos', value: 0, unit: 'un', trend: 'stable', target: 0, benchmark: 0 },
+      },
+      sustainability: {
+        energyEfficiency: { name: 'Eficiência Energética', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        wasteReduction: { name: 'Redução de Resíduos', value: 0, unit: '%', trend: 'stable', target: 0, benchmark: 0 },
+        waterUsage: { name: 'Uso de Água', value: 0, unit: 'm3', trend: 'stable', target: 0, benchmark: 0 },
+        carbonFootprint: { name: 'Pegada de Carbono', value: 0, unit: 'tCO2', trend: 'stable', target: 0, benchmark: 0 },
       }
     };
-  }, [revenueCalculations, costCalculations, dreCalculations, viabilityAnalysis, investmentRequirements, club.numFields]);
+    
+    return { financial, strategic };
+  }, [revenueCalculations, dreCalculations, investmentRequirements, market.growthPotential]);
 
   // =====================================================
   // FUNÇÃO DE RECÁLCULO AUTOMÁTICO
   // =====================================================
   
-  const recalculate = () => {
-    console.log('🔄 Executando recálculo automático...');
-    
-    // Atualizar projeções no store
-    setProjections(projectionCalculations as any);
-    
-    // Atualizar KPIs no store
-    setKPIs(kpiCalculations as any);
-    
-    // Criar análise completa
-    const analysis = {
+  const recalculate = useCallback(() => {
+    setProjections(projectionCalculations);
+    setKPIs(kpiCalculations.financial);
+    setStrategicKPIs(kpiCalculations.strategic);
+
+    const analysis: InvestmentAnalysis = {
+      initialInvestment: investmentRequirements,
       projections: projectionCalculations,
-      viability: viabilityAnalysis,
-      investment: investmentRequirements,
-      dre: dreCalculations,
-      cashFlow: cashFlowCalculations,
-      kpis: kpiCalculations
+      valuation: viabilityAnalysis,
+      sensitivity: { variables: [], results: [] },
+      scenarios: { optimistic: [], realistic: [], pessimistic: [], monteCarloResults: [] },
     };
     
-    setAnalysis(analysis as any);
-    
-    console.log('✅ Recálculo automático concluído');
-    
-    return {
-      projections: projectionCalculations,
-      analysis,
-      kpis: kpiCalculations,
-      revenues: revenueCalculations,
-      costs: costCalculations,
-      dre: dreCalculations,
-      cashFlow: cashFlowCalculations,
-      viability: viabilityAnalysis,
-      investment: investmentRequirements
-    };
-  };
+    setAnalysis(analysis);
+  }, [projectionCalculations, kpiCalculations, investmentRequirements, viabilityAnalysis, setProjections, setKPIs, setStrategicKPIs, setAnalysis]);
 
   // =====================================================
   // AUTO-RECÁLCULO QUANDO DADOS MUDAM
   // =====================================================
   
   useEffect(() => {
-    // Recalcular automaticamente quando os dados financeiros mudarem
     if (financialData && Object.keys(financialData).length > 0) {
       const timeoutId = setTimeout(() => {
         recalculate();
-      }, 500); // Debounce de 500ms para evitar recálculos excessivos
-
+      }, 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [financialData, market, club]);
+    return () => {};
+  }, [financialData, market, club, recalculate]);
 
   // =====================================================
   // FUNÇÕES DE CENÁRIOS
   // =====================================================
   
-  const calculateScenarios = () => {
+  const calculateScenarios = useCallback(() => {
     const baseGrowth = market?.growthPotential || 0.12;
-    
     return {
       pessimistic: { growth: baseGrowth * 0.5, description: 'Cenário conservador' },
       realistic: { growth: baseGrowth, description: 'Cenário base' },
       optimistic: { growth: baseGrowth * 1.5, description: 'Cenário otimista' }
     };
-  };
+  }, [market?.growthPotential]);
 
-  return {
-    // Dados calculados
+  return useMemo(() => ({
     revenues: revenueCalculations,
     costs: costCalculations,
     dre: dreCalculations,
     cashFlow: cashFlowCalculations,
     projections: projectionCalculations,
     viability: viabilityAnalysis,
-    kpis: kpiCalculations,
+    kpis: {
+      financial: kpiCalculations.financial,
+      strategic: kpiCalculations.strategic
+    },
     investment: investmentRequirements,
-    
-    // Funções
     recalculate,
     calculateScenarios,
-    
-    // Valores legados para compatibilidade
-    baseFieldRevenue: revenueCalculations.annual,
-    operationalCosts: costCalculations.annual,
-    investmentRequirements,
-    monthlyBreakEven: costCalculations.monthly
-  };
+  }), [
+    revenueCalculations, costCalculations, dreCalculations, cashFlowCalculations,
+    projectionCalculations, viabilityAnalysis, kpiCalculations, investmentRequirements,
+    recalculate, calculateScenarios
+  ]);
 } 

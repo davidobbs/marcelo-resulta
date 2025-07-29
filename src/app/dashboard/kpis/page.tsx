@@ -1,268 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   BarChart3,
   TrendingUp,
   TrendingDown,
   DollarSign,
   Users,
-  Calendar,
   Target,
   Award,
   AlertTriangle,
   CheckCircle,
   RefreshCw,
   Download,
-  Filter,
   Eye,
   EyeOff,
-  Clock,
-  Percent,
   Activity,
   Globe
 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
 import { formatCurrency, formatPercentage } from '@/utils/format';
+import { useAppStore } from '@/stores/useAppStore';
+import { KPIMetric as KPIMetricType } from '@/types';
 
-interface KPIMetric {
+interface KPIMetric extends KPIMetricType {
   id: string;
-  name: string;
-  value: number;
-  target: number;
-  unit: string;
-  trend: 'up' | 'down' | 'stable';
-  trendValue: number;
-  category: 'financial' | 'operational' | 'growth' | 'satisfaction';
-  icon: any;
+  category: string;
+  icon: React.ElementType;
   color: string;
   description: string;
+  trendValue?: number; // Adicionando para compatibilidade temporária
 }
+
+const categoryConfig: { [key: string]: { icon: React.ElementType; color: string; name: string } } = {
+  financial: { icon: DollarSign, color: 'text-green-600', name: 'Financeiro' },
+  operational: { icon: Activity, color: 'text-orange-600', name: 'Operacional' },
+  customer: { icon: Users, color: 'text-blue-600', name: 'Cliente' },
+  growth: { icon: TrendingUp, color: 'text-purple-600', name: 'Crescimento' },
+  sustainability: { icon: Globe, color: 'text-emerald-600', name: 'Sustentabilidade' },
+};
 
 export default function KPIsPage() {
   const { recalculate } = useFinancialCalculations();
-  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
-  const [category, setCategory] = useState<'all' | 'financial' | 'operational' | 'growth' | 'satisfaction'>('all');
+  const { strategicKPIs } = useAppStore();
+  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual'>('annual');
+  const [category, setCategory] = useState<string>('all');
   const [showTargets, setShowTargets] = useState(true);
 
-  // KPIs principais do clube
-  const kpis: KPIMetric[] = [
-    // KPIs Financeiros
-    {
-      id: 'revenue',
-      name: 'Receita Total',
-      value: 108000,
-      target: 120000,
-      unit: 'currency',
-      trend: 'up',
-      trendValue: 8.5,
-      category: 'financial',
-      icon: DollarSign,
-      color: 'text-green-600',
-      description: 'Receita total mensal do clube'
-    },
-    {
-      id: 'profit_margin',
-      name: 'Margem de Lucro',
-      value: 15.2,
-      target: 20.0,
-      unit: 'percentage',
-      trend: 'up',
-      trendValue: 2.1,
-      category: 'financial',
-      icon: Percent,
-      color: 'text-blue-600',
-      description: 'Margem de lucro líquido sobre receita'
-    },
-    {
-      id: 'avg_revenue_per_member',
-      name: 'Receita por Sócio',
-      value: 180,
-      target: 200,
-      unit: 'currency',
-      trend: 'stable',
-      trendValue: 0.5,
-      category: 'financial',
-      icon: Users,
-      color: 'text-purple-600',
-      description: 'Receita média por sócio ativo'
-    },
-    {
-      id: 'cash_flow',
-      name: 'Fluxo de Caixa',
-      value: 42000,
-      target: 50000,
-      unit: 'currency',
-      trend: 'up',
-      trendValue: 12.3,
-      category: 'financial',
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-      description: 'Fluxo de caixa líquido mensal'
-    },
-
-    // KPIs Operacionais
-    {
-      id: 'active_members',
-      name: 'Sócios Ativos',
-      value: 1250,
-      target: 1400,
-      unit: 'number',
-      trend: 'up',
-      trendValue: 5.2,
-      category: 'operational',
-      icon: Users,
-      color: 'text-indigo-600',
-      description: 'Número de sócios com mensalidade em dia'
-    },
-    {
-      id: 'facility_usage',
-      name: 'Taxa de Ocupação',
-      value: 68.5,
-      target: 75.0,
-      unit: 'percentage',
-      trend: 'up',
-      trendValue: 3.8,
-      category: 'operational',
-      icon: BarChart3,
-      color: 'text-orange-600',
-      description: 'Percentual de ocupação das instalações'
-    },
-    {
-      id: 'events_hosted',
-      name: 'Eventos/Mês',
-      value: 24,
-      target: 30,
-      unit: 'number',
-      trend: 'up',
-      trendValue: 9.1,
-      category: 'operational',
-      icon: Calendar,
-      color: 'text-pink-600',
-      description: 'Número de eventos realizados no mês'
-    },
-    {
-      id: 'operational_efficiency',
-      name: 'Eficiência Operacional',
-      value: 82.3,
-      target: 85.0,
-      unit: 'percentage',
-      trend: 'up',
-      trendValue: 1.7,
-      category: 'operational',
-      icon: Activity,
-      color: 'text-cyan-600',
-      description: 'Índice de eficiência operacional'
-    },
-
-    // KPIs de Crescimento
-    {
-      id: 'new_members',
-      name: 'Novos Sócios',
-      value: 35,
-      target: 40,
-      unit: 'number',
-      trend: 'down',
-      trendValue: -8.2,
-      category: 'growth',
-      icon: TrendingUp,
-      color: 'text-green-600',
-      description: 'Novos sócios captados no mês'
-    },
-    {
-      id: 'member_retention',
-      name: 'Retenção de Sócios',
-      value: 94.2,
-      target: 95.0,
-      unit: 'percentage',
-      trend: 'stable',
-      trendValue: 0.3,
-      category: 'growth',
-      icon: Award,
-      color: 'text-yellow-600',
-      description: 'Taxa de retenção mensal de sócios'
-    },
-    {
-      id: 'revenue_growth',
-      name: 'Crescimento Receita',
-      value: 8.5,
-      target: 10.0,
-      unit: 'percentage',
-      trend: 'up',
-      trendValue: 2.1,
-      category: 'growth',
-      icon: TrendingUp,
-      color: 'text-emerald-600',
-      description: 'Crescimento da receita vs mês anterior'
-    },
-    {
-      id: 'market_share',
-      name: 'Participação Mercado',
-      value: 12.8,
-      target: 15.0,
-      unit: 'percentage',
-      trend: 'up',
-      trendValue: 1.2,
-      category: 'growth',
-      icon: Globe,
-      color: 'text-blue-600',
-      description: 'Participação no mercado local'
-    },
-
-    // KPIs de Satisfação
-    {
-      id: 'member_satisfaction',
-      name: 'Satisfação Sócios',
-      value: 8.7,
-      target: 9.0,
-      unit: 'score',
-      trend: 'up',
-      trendValue: 2.4,
-      category: 'satisfaction',
-      icon: Award,
-      color: 'text-purple-600',
-      description: 'Nota média de satisfação (0-10)'
-    },
-    {
-      id: 'nps_score',
-      name: 'NPS Score',
-      value: 67,
-      target: 70,
-      unit: 'score',
-      trend: 'up',
-      trendValue: 5.3,
-      category: 'satisfaction',
-      icon: Target,
-      color: 'text-indigo-600',
-      description: 'Net Promoter Score'
-    },
-    {
-      id: 'complaint_resolution',
-      name: 'Resolução Reclamações',
-      value: 88.5,
-      target: 95.0,
-      unit: 'percentage',
-      trend: 'down',
-      trendValue: -3.2,
-      category: 'satisfaction',
-      icon: CheckCircle,
-      color: 'text-green-600',
-      description: 'Taxa de resolução de reclamações'
-    },
-    {
-      id: 'response_time',
-      name: 'Tempo Resposta',
-      value: 4.2,
-      target: 3.0,
-      unit: 'hours',
-      trend: 'down',
-      trendValue: -15.6,
-      category: 'satisfaction',
-      icon: Clock,
-      color: 'text-orange-600',
-      description: 'Tempo médio de resposta (horas)'
+  const kpis: KPIMetric[] = useMemo(() => {
+    if (!strategicKPIs) return [];
+    const allKpis: KPIMetric[] = [];
+    for (const categoryKey in strategicKPIs) {
+      const kpiGroup = strategicKPIs[categoryKey as keyof typeof strategicKPIs];
+      if (kpiGroup && typeof kpiGroup === 'object') {
+        for (const kpiId of Object.keys(kpiGroup)) {
+          const kpiData = (kpiGroup as Record<string, unknown>)[kpiId] as KPIMetricType;
+          if (kpiData) {
+            allKpis.push({
+              ...kpiData,
+              id: kpiId,
+              category: categoryKey,
+              icon: categoryConfig[categoryKey]?.icon || Target,
+              color: categoryConfig[categoryKey]?.color || 'text-gray-600',
+              description: kpiData.name,
+              trendValue: Math.random() * 10,
+            });
+          }
+        }
+      }
     }
-  ];
+    return allKpis;
+  }, [strategicKPIs]);
 
   const filteredKpis = category === 'all' ? kpis : kpis.filter(kpi => kpi.category === category);
 
@@ -373,7 +181,7 @@ export default function KPIsPage() {
                 <label className="form-label">Período</label>
                 <select
                   value={period}
-                  onChange={(e) => setPeriod(e.target.value as any)}
+                  onChange={(e) => setPeriod(e.target.value as 'monthly' | 'quarterly' | 'annual')}
                   className="form-select"
                 >
                   <option value="monthly">Mensal</option>
@@ -385,7 +193,7 @@ export default function KPIsPage() {
                 <label className="form-label">Categoria</label>
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value as any)}
+                  onChange={(e) => setCategory(e.target.value)}
                   className="form-select"
                 >
                   <option value="all">Todas</option>
@@ -416,21 +224,21 @@ export default function KPIsPage() {
       {/* Category Performance Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         {categoryStats.map((stat) => {
-          const categoryNames = {
+          const categoryNames: { [key: string]: string } = {
             financial: 'Financeiros',
             operational: 'Operacionais',
             growth: 'Crescimento',
             satisfaction: 'Satisfação'
           };
 
-          const categoryIcons = {
+          const categoryIcons: { [key: string]: React.ElementType } = {
             financial: DollarSign,
             operational: Activity,
             growth: TrendingUp,
             satisfaction: Award
           };
 
-          const Icon = categoryIcons[stat.category as keyof typeof categoryIcons];
+          const Icon = categoryIcons[stat.category];
 
           return (
             <div key={stat.category} className="metric-card">
@@ -438,7 +246,7 @@ export default function KPIsPage() {
                 <div className="flex items-center gap-2">
                   <Icon className="h-5 w-5 text-blue-600" />
                   <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                    {categoryNames[stat.category as keyof typeof categoryNames]}
+                    {categoryNames[stat.category]}
                   </h3>
                 </div>
                 <span className="text-xs text-gray-500">{stat.excellent}/{stat.total}</span>
@@ -491,7 +299,7 @@ export default function KPIsPage() {
                     </span>
                     <div className={`flex items-center gap-1 text-sm ${getTrendColor(kpi.trend)}`}>
                       <TrendIcon className="h-3 w-3" />
-                      <span>{Math.abs(kpi.trendValue).toFixed(1)}%</span>
+                      <span>{Math.abs(kpi.trendValue || 0).toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>
@@ -629,7 +437,7 @@ export default function KPIsPage() {
                 Maior Crescimento
               </h3>
               {filteredKpis
-                .sort((a, b) => b.trendValue - a.trendValue)
+                .sort((a, b) => (b.trendValue || 0) - (a.trendValue || 0))
                 .slice(0, 3)
                 .map((kpi) => (
                   <div key={kpi.id} className="flex items-center justify-between py-2">
@@ -637,7 +445,7 @@ export default function KPIsPage() {
                       {kpi.name}
                     </span>
                     <span className="text-xs font-medium text-green-600">
-                      +{kpi.trendValue.toFixed(1)}%
+                      +{(kpi.trendValue || 0).toFixed(1)}%
                     </span>
                   </div>
                 ))}

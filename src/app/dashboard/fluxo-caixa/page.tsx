@@ -5,132 +5,55 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Calendar,
-  BarChart3,
   AlertTriangle,
   CheckCircle,
   RefreshCw,
   Download,
-  Filter,
   Eye,
   EyeOff,
   ArrowUpRight,
   ArrowDownRight,
-  Clock,
   Target
 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
+
 import { formatCurrency, formatPercentage } from '@/utils/format';
 
 interface CashFlowItem {
   month: string;
-  inflows: {
-    membership: number;
-    sponsorship: number;
-    fieldRental: number;
-    events: number;
-    other: number;
-    total: number;
-  };
-  outflows: {
-    personnel: number;
-    facilities: number;
-    utilities: number;
-    marketing: number;
-    administrative: number;
-    taxes: number;
-    other: number;
-    total: number;
-  };
-  netCashFlow: number;
-  cumulativeCashFlow: number;
+  operational: number;
+  investment: number;
+  financing: number;
+  net: number;
+  accumulated: number;
 }
 
 export default function FluxoCaixaPage() {
-  const { recalculate } = useFinancialCalculations();
-  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
+  const { recalculate, projections } = useFinancialCalculations();
   const [viewType, setViewType] = useState<'table' | 'chart'>('table');
   const [showDetails, setShowDetails] = useState(true);
   const [scenario, setScenario] = useState<'conservative' | 'optimistic' | 'pessimistic'>('conservative');
 
-  // Dados de exemplo para 12 meses
-  const generateCashFlowData = (): CashFlowItem[] => {
-    const months = [
-      'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-      'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
-    ];
+  const cashFlowData: CashFlowItem[] = (projections || []).map((p, index) => {
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    return {
+      month: monthNames[index % 12],
+      operational: p.cashFlow.operational,
+      investment: p.cashFlow.investment,
+      financing: p.cashFlow.financing,
+      net: p.cashFlow.net,
+      accumulated: p.cashFlow.accumulated,
+    };
+  });
 
-    let cumulativeFlow = 85000; // Saldo inicial
-
-    return months.map((month, index) => {
-      // Variações sazonais
-      const seasonalFactor = index >= 5 && index <= 8 ? 1.2 : // Jun-Set (alta temporada)
-                           index >= 11 || index <= 1 ? 0.8 : 1.0; // Dez-Fev (baixa temporada)
-
-      const scenarioMultiplier = scenario === 'optimistic' ? 1.15 : 
-                                scenario === 'pessimistic' ? 0.85 : 1.0;
-
-      const baseInflows = {
-        membership: 45000 * seasonalFactor * scenarioMultiplier,
-        sponsorship: 25000 * (index % 3 === 0 ? 1.5 : 1.0), // Patrocínios trimestrais
-        fieldRental: 18000 * seasonalFactor * scenarioMultiplier,
-        events: 12000 * seasonalFactor * scenarioMultiplier,
-        other: 8000 * seasonalFactor * scenarioMultiplier
-      };
-
-      const baseOutflows = {
-        personnel: 52000,
-        facilities: 15000,
-        utilities: 8000 * (seasonalFactor > 1 ? 1.3 : 1.0), // Maior consumo na alta temporada
-        marketing: 12000 * seasonalFactor,
-        administrative: 8000,
-        taxes: 15000 * (index % 4 === 2 ? 1.0 : 0.3), // Trimestral concentrado
-        other: 5000
-      };
-
-      const inflows = {
-        ...baseInflows,
-        total: Object.values(baseInflows).reduce((a, b) => a + b, 0)
-      };
-
-      const outflows = {
-        ...baseOutflows,
-        total: Object.values(baseOutflows).reduce((a, b) => a + b, 0)
-      };
-
-      const netCashFlow = inflows.total - outflows.total;
-      cumulativeFlow += netCashFlow;
-
-      return {
-        month,
-        inflows,
-        outflows,
-        netCashFlow,
-        cumulativeCashFlow: cumulativeFlow
-      };
-    });
-  };
-
-  const cashFlowData = generateCashFlowData();
-
-  const totalInflows = cashFlowData.reduce((sum, item) => sum + item.inflows.total, 0);
-  const totalOutflows = cashFlowData.reduce((sum, item) => sum + item.outflows.total, 0);
+  const totalInflows = cashFlowData.reduce((sum, item) => sum + item.operational + item.financing, 0);
+  const totalOutflows = cashFlowData.reduce((sum, item) => sum + Math.abs(item.investment), 0);
   const totalNetFlow = totalInflows - totalOutflows;
-  const initialBalance = 85000;
-  const finalBalance = cashFlowData[cashFlowData.length - 1].cumulativeCashFlow;
-
-  const minCashFlow = Math.min(...cashFlowData.map(item => item.cumulativeCashFlow));
-  const maxCashFlow = Math.max(...cashFlowData.map(item => item.cumulativeCashFlow));
-
-  const positiveMonths = cashFlowData.filter(item => item.netCashFlow > 0).length;
-  const negativeMonths = cashFlowData.filter(item => item.netCashFlow < 0).length;
-
-  const burnRate = cashFlowData
-    .filter(item => item.netCashFlow < 0)
-    .reduce((sum, item) => sum + Math.abs(item.netCashFlow), 0) / negativeMonths || 0;
-
-  const runwayMonths = minCashFlow > 0 ? Infinity : 
-                      burnRate > 0 ? Math.floor(initialBalance / burnRate) : 0;
+  const initialBalance = (projections?.[0]?.cashFlow.accumulated || 0) - (projections?.[0]?.cashFlow.net || 0);
+  const finalBalance = cashFlowData[cashFlowData.length - 1]?.accumulated || 0;
+  
+  // O restante da lógica de cálculo e o JSX devem ser adaptados para essa nova estrutura.
+  // Por exemplo, a tabela de detalhes não poderá mais mostrar o breakdown por categoria.
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -163,20 +86,8 @@ export default function FluxoCaixaPage() {
               <div className="form-group">
                 <label className="form-label">Período</label>
                 <select
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value as any)}
-                  className="form-select"
-                >
-                  <option value="monthly">Mensal</option>
-                  <option value="quarterly">Trimestral</option>
-                  <option value="annual">Anual</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Cenário</label>
-                <select
                   value={scenario}
-                  onChange={(e) => setScenario(e.target.value as any)}
+                  onChange={(e) => setScenario(e.target.value as 'conservative' | 'optimistic' | 'pessimistic')}
                   className="form-select"
                 >
                   <option value="conservative">Conservador</option>
@@ -188,7 +99,7 @@ export default function FluxoCaixaPage() {
                 <label className="form-label">Visualização</label>
                 <select
                   value={viewType}
-                  onChange={(e) => setViewType(e.target.value as any)}
+                  onChange={(e) => setViewType(e.target.value as 'table' | 'chart')}
                   className="form-select"
                 >
                   <option value="table">Tabela</option>
@@ -272,7 +183,7 @@ export default function FluxoCaixaPage() {
       {viewType === 'table' && (
         <div className="card mb-6">
           <div className="card-header">
-            <h2 className="text-xl font-semibold">Fluxo de Caixa Projetado - 2024</h2>
+            <h2 className="text-xl font-semibold">Fluxo de Caixa Projetado</h2>
           </div>
           <div className="card-body p-0">
             <div className="overflow-x-auto">
@@ -280,8 +191,8 @@ export default function FluxoCaixaPage() {
                 <thead className="table-header">
                   <tr>
                     <th className="table-header-cell">Mês</th>
-                    <th className="table-header-cell text-right">Entradas</th>
-                    <th className="table-header-cell text-right">Saídas</th>
+                    <th className="table-header-cell text-right">Entradas (Operacional)</th>
+                    <th className="table-header-cell text-right">Saídas (Investimento)</th>
                     <th className="table-header-cell text-right">Fluxo Líquido</th>
                     <th className="table-header-cell text-right">Saldo Acumulado</th>
                   </tr>
@@ -300,20 +211,20 @@ export default function FluxoCaixaPage() {
                     <tr key={index} className="table-row">
                       <td className="table-cell font-medium">{item.month}</td>
                       <td className="table-cell text-right text-green-600 font-medium">
-                        {formatCurrency(item.inflows.total)}
+                        {formatCurrency(item.operational)}
                       </td>
                       <td className="table-cell text-right text-red-600 font-medium">
-                        {formatCurrency(item.outflows.total)}
+                        {formatCurrency(Math.abs(item.investment))}
                       </td>
                       <td className={`table-cell text-right font-medium ${
-                        item.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'
+                        item.net >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
-                        {formatCurrency(item.netCashFlow)}
+                        {formatCurrency(item.net)}
                       </td>
                       <td className={`table-cell text-right font-bold ${
-                        item.cumulativeCashFlow >= 0 ? 'text-blue-600' : 'text-red-600'
+                        item.accumulated >= 0 ? 'text-blue-600' : 'text-red-600'
                       }`}>
-                        {formatCurrency(item.cumulativeCashFlow)}
+                        {formatCurrency(item.accumulated)}
                       </td>
                     </tr>
                   ))}
@@ -334,16 +245,16 @@ export default function FluxoCaixaPage() {
             </div>
             <div className="card-body">
               <div className="space-y-4">
-                {['membership', 'sponsorship', 'fieldRental', 'events', 'other'].map((category) => {
-                  const total = cashFlowData.reduce((sum, item) => sum + item.inflows[category as keyof typeof item.inflows], 0);
-                  const percentage = (total / totalInflows) * 100;
+                {['operational', 'financing'].map((category) => {
+                  const total = cashFlowData.reduce((sum, item) => {
+                    const value = item[category as keyof typeof item];
+                    return sum + (typeof value === 'number' ? value : 0);
+                  }, 0);
+                  const percentage = totalInflows > 0 ? (total / totalInflows) * 100 : 0;
                   
                   const categoryNames = {
-                    membership: 'Mensalidades',
-                    sponsorship: 'Patrocínios',
-                    fieldRental: 'Aluguel Quadras',
-                    events: 'Eventos',
-                    other: 'Outras Receitas'
+                    operational: 'Operacional',
+                    financing: 'Financiamento'
                   };
 
                   return (
@@ -384,18 +295,15 @@ export default function FluxoCaixaPage() {
             </div>
             <div className="card-body">
               <div className="space-y-4">
-                {['personnel', 'facilities', 'utilities', 'marketing', 'administrative', 'taxes', 'other'].map((category) => {
-                  const total = cashFlowData.reduce((sum, item) => sum + item.outflows[category as keyof typeof item.outflows], 0);
-                  const percentage = (total / totalOutflows) * 100;
+                {['investment'].map((category) => {
+                  const total = cashFlowData.reduce((sum, item) => {
+                    const value = item[category as keyof typeof item];
+                    return sum + (typeof value === 'number' ? Math.abs(value) : 0);
+                  }, 0);
+                  const percentage = totalOutflows > 0 ? (total / totalOutflows) * 100 : 0;
                   
                   const categoryNames = {
-                    personnel: 'Pessoal',
-                    facilities: 'Instalações',
-                    utilities: 'Utilidades',
-                    marketing: 'Marketing',
-                    administrative: 'Administrativo',
-                    taxes: 'Impostos',
-                    other: 'Outros'
+                    investment: 'Investimento'
                   };
 
                   return (
@@ -442,30 +350,30 @@ export default function FluxoCaixaPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <span className="text-sm font-medium text-blue-800 dark:text-blue-200">Meses Positivos</span>
-                <span className="text-lg font-bold text-blue-600">{positiveMonths}/12</span>
+                <span className="text-lg font-bold text-blue-600">{cashFlowData.filter(item => item.net > 0).length}/12</span>
               </div>
               
               <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                 <span className="text-sm font-medium text-orange-800 dark:text-orange-200">Meses Negativos</span>
-                <span className="text-lg font-bold text-orange-600">{negativeMonths}/12</span>
+                <span className="text-lg font-bold text-orange-600">{cashFlowData.filter(item => item.net < 0).length}/12</span>
               </div>
 
               <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                 <span className="text-sm font-medium text-purple-800 dark:text-purple-200">Menor Saldo</span>
-                <span className={`text-lg font-bold ${minCashFlow >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
-                  {formatCurrency(minCashFlow)}
+                <span className={`text-lg font-bold ${cashFlowData.reduce((min, item) => Math.min(min, item.accumulated), Infinity) >= 0 ? 'text-purple-600' : 'text-red-600'}`}>
+                  {formatCurrency(cashFlowData.reduce((min, item) => Math.min(min, item.accumulated), Infinity))}
                 </span>
               </div>
 
               <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <span className="text-sm font-medium text-green-800 dark:text-green-200">Maior Saldo</span>
-                <span className="text-lg font-bold text-green-600">{formatCurrency(maxCashFlow)}</span>
+                <span className="text-lg font-bold text-green-600">{formatCurrency(cashFlowData.reduce((max, item) => Math.max(max, item.accumulated), -Infinity))}</span>
               </div>
 
-              {burnRate > 0 && (
+              {cashFlowData.filter(item => item.net < 0).length > 0 && (
                 <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <span className="text-sm font-medium text-red-800 dark:text-red-200">Taxa de Queima</span>
-                  <span className="text-lg font-bold text-red-600">{formatCurrency(burnRate)}/mês</span>
+                  <span className="text-lg font-bold text-red-600">{formatCurrency(cashFlowData.filter(item => item.net < 0).reduce((sum, item) => sum + Math.abs(item.net), 0) / cashFlowData.filter(item => item.net < 0).length)}/mês</span>
                 </div>
               )}
             </div>
@@ -495,7 +403,7 @@ export default function FluxoCaixaPage() {
                 </div>
               )}
 
-              {minCashFlow < 50000 && (
+              {cashFlowData.reduce((min, item) => Math.min(min, item.accumulated), Infinity) < 50000 && (
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <p className="text-sm text-gray-700 dark:text-gray-300">
@@ -504,7 +412,7 @@ export default function FluxoCaixaPage() {
                 </div>
               )}
 
-              {negativeMonths > 6 && (
+              {cashFlowData.filter(item => item.net < 0).length > 6 && (
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-5 w-5 text-orange-600 mt-0.5" />
                   <p className="text-sm text-gray-700 dark:text-gray-300">

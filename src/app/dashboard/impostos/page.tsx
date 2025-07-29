@@ -7,9 +7,16 @@ import {
   TrendingUp, 
   AlertTriangle,
   Info,
-  FileText,
   DollarSign
 } from 'lucide-react';
+
+interface Regime {
+  name: string;
+  rate: number;
+  description: string;
+  limit: number | null;
+  benefits: string[];
+}
 
 export default function ImpostosPage() {
   const [selectedMarket, setSelectedMarket] = useState('Brasil');
@@ -92,7 +99,7 @@ export default function ImpostosPage() {
   const currentMarket = markets[selectedMarket as keyof typeof markets];
   const annualRevenue = 540000; // R$ 45k * 12 meses
 
-  const calculateTaxes = (regime: any) => {
+  const calculateTaxes = (regime: Regime) => {
     const grossTax = (annualRevenue * regime.rate) / 100;
     const laborCosts = (annualRevenue * 0.3 * currentMarket.taxes.laborTaxes) / 100;
     const totalTaxBurden = grossTax + laborCosts;

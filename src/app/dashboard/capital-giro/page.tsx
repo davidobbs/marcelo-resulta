@@ -13,12 +13,12 @@ import {
   RefreshCw,
   BarChart3,
   Download,
-  PieChart,
   Clock,
   Target
 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
 import { formatCurrency, formatPercentage } from '@/utils/format';
+import { useAppStore } from '@/stores/useAppStore';
 
 interface CapitalGiroItem {
   category: 'assets' | 'liabilities';
@@ -29,22 +29,22 @@ interface CapitalGiroItem {
 }
 
 export default function CapitalGiroPage() {
-  const { recalculate } = useFinancialCalculations();
+  const { recalculate, costs, revenues } = useFinancialCalculations();
+  const { market } = useAppStore();
   const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
   const [scenario, setScenario] = useState<'conservative' | 'optimistic' | 'pessimistic'>('conservative');
 
-  // Dados de exemplo para demonstração
+  // Dados agora derivados do estado global
   const workingCapitalData: CapitalGiroItem[] = [
-    // Ativos Circulantes
-    { category: 'assets', name: 'Caixa e Equivalentes', value: 85000, description: 'Disponibilidades em conta corrente e aplicações', days: 30 },
-    { category: 'assets', name: 'Contas a Receber', value: 45000, description: 'Mensalidades e patrocínios a receber', days: 45 },
-    { category: 'assets', name: 'Estoque', value: 12000, description: 'Materiais esportivos e equipamentos', days: 60 },
+    // Ativos Circulantes (Estimativa)
+    { category: 'assets', name: 'Caixa e Equivalentes', value: (revenues?.monthly || 0) * 0.8, description: 'Disponibilidades estimadas', days: 30 },
+    { category: 'assets', name: 'Contas a Receber', value: (revenues?.monthly || 0) * 0.4, description: 'Recebíveis estimados', days: 45 },
+    { category: 'assets', name: 'Estoque', value: 12000, description: 'Valor fixo para estoque', days: 60 },
     
-    // Passivos Circulantes
-    { category: 'liabilities', name: 'Fornecedores', value: 28000, description: 'Contas a pagar para fornecedores', days: 30 },
-    { category: 'liabilities', name: 'Salários e Encargos', value: 52000, description: 'Folha de pagamento e benefícios', days: 30 },
-    { category: 'liabilities', name: 'Impostos a Recolher', value: 15000, description: 'Tributos municipais, estaduais e federais', days: 45 },
-    { category: 'liabilities', name: 'Empréstimos CP', value: 25000, description: 'Financiamentos de curto prazo', days: 90 }
+    // Passivos Circulantes (Estimativa)
+    { category: 'liabilities', name: 'Fornecedores', value: (costs?.operational || 0) * 0.3, description: 'Pagamentos a fornecedores', days: 30 },
+    { category: 'liabilities', name: 'Salários e Encargos', value: (costs?.personnel || 0), description: 'Folha de pagamento', days: 30 },
+    { category: 'liabilities', name: 'Impostos a Recolher', value: (revenues?.annual || 0) * (market.taxRate / 12), description: 'Tributos mensais', days: 45 },
   ];
 
   const currentAssets = workingCapitalData
@@ -124,7 +124,7 @@ export default function CapitalGiroPage() {
                 <label className="form-label">Período de Análise</label>
                 <select
                   value={period}
-                  onChange={(e) => setPeriod(e.target.value as any)}
+                  onChange={(e) => setPeriod(e.target.value as 'monthly' | 'quarterly' | 'annual')}
                   className="form-select"
                 >
                   <option value="monthly">Mensal</option>
@@ -136,7 +136,7 @@ export default function CapitalGiroPage() {
                 <label className="form-label">Cenário</label>
                 <select
                   value={scenario}
-                  onChange={(e) => setScenario(e.target.value as any)}
+                  onChange={(e) => setScenario(e.target.value as 'conservative' | 'optimistic' | 'pessimistic')}
                   className="form-select"
                 >
                   <option value="conservative">Conservador</option>

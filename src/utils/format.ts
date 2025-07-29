@@ -6,10 +6,10 @@ import { FORMAT_CONFIG } from '@/lib/constants';
  */
 export function formatCurrency(
   value: number,
-  currency: Currency = 'R$',
+  currency: string = 'R$',
   compact = false
 ): string {
-  const config = FORMAT_CONFIG.currency[currency];
+  const config = FORMAT_CONFIG.currency[currency as keyof typeof FORMAT_CONFIG.currency];
   
   if (compact) {
     if (Math.abs(value) >= 1000000) {
@@ -195,8 +195,7 @@ export function truncateText(text: string, maxLength: number): string {
  */
 export function formatList(
   items: string[],
-  conjunction = 'e',
-  locale = 'pt-BR'
+  conjunction = 'e'
 ): string {
   if (items.length === 0) return '';
   if (items.length === 1) return items[0];
@@ -211,7 +210,7 @@ export function formatList(
 /**
  * Valida se um valor é um número válido
  */
-export function isValidNumber(value: any): value is number {
+export function isValidNumber(value: unknown): value is number {
   return typeof value === 'number' && !isNaN(value) && isFinite(value);
 }
 

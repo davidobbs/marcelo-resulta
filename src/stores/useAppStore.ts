@@ -5,17 +5,10 @@ import type {
   Market, 
   FinancialProjection, 
   InvestmentAnalysis,
-  StrategicKPIs
+  StrategicKPIs,
+  KPIData,
+  CustomField
 } from '@/types';
-
-// Interface para campos customizados
-export interface CustomField {
-  id: string;
-  name: string;
-  value: number;
-  category: string;
-  subcategory?: string;
-}
 
 // Interface para dados financeiros completos de clube profissional
 export interface FinancialData {
@@ -373,22 +366,6 @@ export interface FinancialData {
   };
 }
 
-// Interface simplificada para KPIs
-export interface KPIData {
-  occupancyRate: number;
-  averageTicket: number;
-  customerRetention: number;
-  marketShare: number;
-  growthRate: number;
-  ebitdaMargin: number;
-  netMargin: number;
-  roa: number;
-  roe: number;
-  currentRatio: number;
-  debtToEquity: number;
-  workingCapital: number;
-}
-
 interface AppStore {
   // Dados do clube
   club: ClubData;
@@ -420,6 +397,14 @@ interface AppStore {
   // KPIs
   kpis: KPIData;
   setKPIs: (kpis: KPIData) => void;
+
+  // KPIs Estratégicos
+  strategicKPIs: StrategicKPIs | null;
+  setStrategicKPIs: (kpis: StrategicKPIs) => void;
+
+  // Campos Customizados
+  customFields: CustomField[];
+  setCustomFields: (fields: CustomField[]) => void;
 
   // Função para recalcular automaticamente
   triggerRecalculation: () => void;
@@ -475,18 +460,10 @@ const initialClubData: ClubData = {
 
 // KPIs iniciais
 const initialKPIs: KPIData = {
-  occupancyRate: 0.675,
-  averageTicket: 90,
-  customerRetention: 0.85,
-  marketShare: 0.15,
-  growthRate: 0.12,
-  ebitdaMargin: 0.225,
-  netMargin: 0.18,
-  roa: 0.15,
-  roe: 0.20,
-  currentRatio: 1.5,
-  debtToEquity: 0.3,
-  workingCapital: 90000,
+  revenue: { name: 'Receita Total', value: 0, unit: 'R$', trend: 'stable', target: 500000, benchmark: 450000 },
+  profitability: { name: 'Margem de Lucro', value: 0, unit: '%', trend: 'stable', target: 20, benchmark: 18 },
+  efficiency: { name: 'Taxa de Ocupação', value: 0, unit: '%', trend: 'stable', target: 75, benchmark: 70 },
+  financial: { name: 'ROI', value: 0, unit: '%', trend: 'stable', target: 15, benchmark: 12 },
 };
 
 // Dados financeiros iniciais vazios expandidos
@@ -828,7 +805,7 @@ const initialFinancialData: FinancialData = {
 
 export const useAppStore = create<AppStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // Estado inicial
       club: initialClubData,
       market: initialMarketData,
@@ -838,6 +815,8 @@ export const useAppStore = create<AppStore>()(
       kpis: initialKPIs,
       isRecalculating: false,
       lastCalculated: null,
+      strategicKPIs: null,
+      customFields: [],
 
       // Ações para clube
       setClub: (club) => set({ club }),
@@ -949,6 +928,8 @@ export const useAppStore = create<AppStore>()(
 
       // Ações para KPIs
       setKPIs: (kpis) => set({ kpis }),
+      setStrategicKPIs: (kpis) => set({ strategicKPIs: kpis }),
+      setCustomFields: (fields) => set({ customFields: fields }),
 
       // Função para disparar recálculo
       triggerRecalculation: () => {
@@ -973,6 +954,8 @@ export const useFinancialData = () => useAppStore((state) => state.financialData
 export const useProjections = () => useAppStore((state) => state.projections);
 export const useAnalysis = () => useAppStore((state) => state.analysis);
 export const useKPIs = () => useAppStore((state) => state.kpis);
+export const useStrategicKPIs = () => useAppStore((state) => state.strategicKPIs);
+export const useCustomFields = () => useAppStore((state) => state.customFields);
 
 // Hook para ações
 export const useActions = () => useAppStore((state) => ({
@@ -987,5 +970,7 @@ export const useActions = () => useAppStore((state) => ({
   setProjections: state.setProjections,
   setAnalysis: state.setAnalysis,
   setKPIs: state.setKPIs,
+  setStrategicKPIs: state.setStrategicKPIs,
+  setCustomFields: state.setCustomFields,
   triggerRecalculation: state.triggerRecalculation,
 })); 

@@ -3,18 +3,14 @@
 import { useState } from 'react';
 import { 
   Settings, 
-  User, 
   Building2,
   DollarSign,
   Globe,
-  Moon,
-  Sun,
   Save,
   RefreshCw,
   Lock,
   Bell,
-  Database,
-  Download
+  Database
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -67,11 +63,11 @@ export default function SettingsPage() {
 
   const [isDirty, setIsDirty] = useState(false);
 
-  const handleSettingChange = (tab: string, field: string, value: any) => {
+  const handleSettingChange = (tab: keyof typeof settings, field: string, value: string | number | boolean) => {
     setSettings(prev => ({
       ...prev,
       [tab]: {
-        ...prev[tab as keyof typeof prev],
+        ...prev[tab],
         [field]: value,
       }
     }));
@@ -79,10 +75,8 @@ export default function SettingsPage() {
   };
 
   const handleSave = () => {
-    // Aqui salvaria as configurações
-    console.log('Salvando configurações:', settings);
+    // Lógica de salvamento
     setIsDirty(false);
-    // Mostrar toast de sucesso
   };
 
   const handleReset = () => {

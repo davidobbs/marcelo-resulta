@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -13,117 +13,27 @@ import {
   DollarSign,
   TrendingUp,
   Settings,
-  AlertTriangle,
-  Check,
   Copy,
   Download,
   Upload
 } from 'lucide-react';
-import { useAppStore } from '@/stores/useAppStore';
-import type { CustomField, FieldValidation } from '@/types';
+import { useAppStore, useActions } from '@/stores/useAppStore';
+import type { CustomField } from '@/types';
 import { formatCurrency, formatPercentage } from '@/utils/format';
 
+type CustomFieldCategory = 'revenue' | 'cost' | 'asset' | 'liability' | 'kpi' | 'other';
+
 export default function CustomFieldsPage() {
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const { customFields } = useAppStore();
+  const { setCustomFields: updateGlobalFields } = useActions();
+  
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<Partial<CustomField>>({});
   const [showFormula, setShowFormula] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeCategory, setActiveCategory] = useState<'all' | 'revenue' | 'cost' | 'asset' | 'liability' | 'kpi' | 'other'>('all');
+  const [activeCategory, setActiveCategory] = useState<CustomFieldCategory | 'all'>('all');
 
-  // Dados de exemplo para demonstração
-  useEffect(() => {
-    const exampleFields: CustomField[] = [
-      {
-        id: 'custom_1',
-        name: 'sponsorshipRevenue',
-        label: 'Receita de Patrocínio Premium',
-        type: 'currency',
-        category: 'revenue',
-        value: 150000,
-        unit: 'R$',
-        validation: {
-          required: true,
-          min: 0,
-        },
-        isEditable: true,
-        isVisible: true,
-        description: 'Receita anual estimada de patrocínios premium'
-      },
-      {
-        id: 'custom_2',
-        name: 'socialMediaReach',
-        label: 'Alcance em Redes Sociais',
-        type: 'number',
-        category: 'kpi',
-        value: 50000,
-        unit: 'seguidores',
-        validation: {
-          required: false,
-          min: 0,
-        },
-        isEditable: true,
-        isVisible: true,
-        description: 'Número total de seguidores nas redes sociais'
-      },
-      {
-        id: 'custom_3',
-        name: 'energyCostPerField',
-        label: 'Custo de Energia por Campo',
-        type: 'currency',
-        category: 'cost',
-        value: 800,
-        formula: 'totalEnergyCost / numberOfFields',
-        unit: 'R$/mês',
-        validation: {
-          required: true,
-          min: 0,
-        },
-        isEditable: false,
-        isVisible: true,
-        dependencies: ['totalEnergyCost', 'numberOfFields'],
-        description: 'Custo mensal de energia dividido pelo número de campos'
-      },
-      {
-        id: 'custom_4',
-        name: 'membershipConversionRate',
-        label: 'Taxa de Conversão de Membros',
-        type: 'percentage',
-        category: 'kpi',
-        value: 0.15,
-        formula: 'newMembers / totalVisitors',
-        unit: '%',
-        validation: {
-          required: false,
-          min: 0,
-          max: 1,
-        },
-        isEditable: false,
-        isVisible: true,
-        dependencies: ['newMembers', 'totalVisitors'],
-        description: 'Percentual de visitantes que se tornam membros'
-      },
-      {
-        id: 'custom_5',
-        name: 'equipmentValue',
-        label: 'Valor dos Equipamentos',
-        type: 'currency',
-        category: 'asset',
-        value: 125000,
-        unit: 'R$',
-        validation: {
-          required: true,
-          min: 0,
-        },
-        isEditable: true,
-        isVisible: true,
-        description: 'Valor total dos equipamentos esportivos e de manutenção'
-      }
-    ];
-    setCustomFields(exampleFields);
-  }, []);
-
-  const fieldTypes = [
+  const fieldTypes: { value: CustomField['type']; label: string }[] = [
     { value: 'text', label: 'Texto' },
     { value: 'number', label: 'Número' },
     { value: 'currency', label: 'Moeda' },
@@ -133,7 +43,7 @@ export default function CustomFieldsPage() {
     { value: 'select', label: 'Lista' },
   ];
 
-  const categories = [
+  const categories: { value: CustomFieldCategory; label: string; icon: React.ElementType; color: string }[] = [
     { value: 'revenue', label: 'Receita', icon: DollarSign, color: 'text-green-600' },
     { value: 'cost', label: 'Custo', icon: TrendingUp, color: 'text-red-600' },
     { value: 'asset', label: 'Ativo', icon: Plus, color: 'text-blue-600' },
@@ -148,15 +58,8 @@ export default function CustomFieldsPage() {
       setIsEditing(field.id);
     } else {
       setEditingField({
-        name: '',
-        label: '',
-        type: 'number',
-        category: 'other',
-        value: 0,
-        validation: {},
-        isEditable: true,
-        isVisible: true,
-        description: ''
+        name: '', label: '', type: 'number', category: 'other', value: 0,
+        validation: {}, isEditable: true, isVisible: true, description: ''
       });
       setIsEditing('new');
     }
@@ -167,29 +70,22 @@ export default function CustomFieldsPage() {
       alert('Nome e rótulo são obrigatórios');
       return;
     }
-
     const field: CustomField = {
       id: isEditing === 'new' ? `custom_${Date.now()}` : isEditing as string,
-      name: editingField.name || '',
-      label: editingField.label || '',
-      type: editingField.type || 'number',
-      category: editingField.category || 'other',
-      value: editingField.value || 0,
-      formula: editingField.formula,
-      unit: editingField.unit,
-      validation: editingField.validation || {},
-      isEditable: editingField.isEditable ?? true,
-      isVisible: editingField.isVisible ?? true,
-      dependencies: editingField.dependencies,
+      name: editingField.name || '', label: editingField.label || '',
+      type: editingField.type || 'number', category: editingField.category || 'other',
+      value: editingField.value || 0, formula: editingField.formula, unit: editingField.unit,
+      validation: editingField.validation || {}, isEditable: editingField.isEditable ?? true,
+      isVisible: editingField.isVisible ?? true, dependencies: editingField.dependencies,
       description: editingField.description || ''
     };
-
+    let updatedFields: CustomField[];
     if (isEditing === 'new') {
-      setCustomFields([...customFields, field]);
+      updatedFields = [...(customFields || []), field];
     } else {
-      setCustomFields(customFields.map(f => f.id === field.id ? field : f));
+      updatedFields = (customFields || []).map(f => f.id === field.id ? field : f);
     }
-
+    updateGlobalFields(updatedFields);
     setIsEditing(null);
     setEditingField({});
   };
@@ -201,16 +97,17 @@ export default function CustomFieldsPage() {
 
   const deleteField = (id: string) => {
     if (confirm('Tem certeza que deseja excluir este campo?')) {
-      setCustomFields(customFields.filter(f => f.id !== id));
+      updateGlobalFields((customFields || []).filter(f => f.id !== id));
     }
   };
 
   const toggleVisibility = (id: string) => {
-    setCustomFields(customFields.map(f => 
+    const updatedFields = (customFields || []).map(f => 
       f.id === id ? { ...f, isVisible: !f.isVisible } : f
-    ));
+    );
+    updateGlobalFields(updatedFields);
   };
-
+  
   const duplicateField = (field: CustomField) => {
     const newField: CustomField = {
       ...field,
@@ -218,7 +115,7 @@ export default function CustomFieldsPage() {
       name: `${field.name}_copy`,
       label: `${field.label} (Cópia)`
     };
-    setCustomFields([...customFields, newField]);
+    updateGlobalFields([...(customFields || []), newField]);
   };
 
   const formatValue = (field: CustomField) => {
@@ -235,19 +132,19 @@ export default function CustomFieldsPage() {
   };
 
   const filteredFields = activeCategory === 'all' 
-    ? customFields 
-    : customFields.filter(f => f.category === activeCategory);
+    ? (customFields || [])
+    : (customFields || []).filter(f => f.category === activeCategory);
 
   const getCategoryIcon = (category: string) => {
     const cat = categories.find(c => c.value === category);
     return cat ? cat.icon : Calculator;
   };
-
+  
   const getCategoryColor = (category: string) => {
     const cat = categories.find(c => c.value === category);
     return cat ? cat.color : 'text-gray-600';
   };
-
+  
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -279,7 +176,7 @@ export default function CustomFieldsPage() {
           <button 
             onClick={() => {
               // Exporta os campos customizados
-              const dataStr = JSON.stringify(customFields, null, 2);
+              const dataStr = JSON.stringify(customFields || [], null, 2);
               const dataBlob = new Blob([dataStr], {type: 'application/json'});
               const url = URL.createObjectURL(dataBlob);
               const link = document.createElement('a');
@@ -310,7 +207,7 @@ export default function CustomFieldsPage() {
             <Calculator className="w-8 h-8 text-blue-600" />
             <div>
               <p className="metric-label">Total de Campos</p>
-              <p className="metric-value">{customFields.length}</p>
+              <p className="metric-value">{customFields?.length || 0}</p>
             </div>
           </div>
         </div>
@@ -320,7 +217,7 @@ export default function CustomFieldsPage() {
             <Eye className="w-8 h-8 text-green-600" />
             <div>
               <p className="metric-label">Campos Visíveis</p>
-              <p className="metric-value">{customFields.filter(f => f.isVisible).length}</p>
+              <p className="metric-value">{customFields?.filter(f => f.isVisible).length || 0}</p>
             </div>
           </div>
         </div>
@@ -330,7 +227,7 @@ export default function CustomFieldsPage() {
             <Settings className="w-8 h-8 text-purple-600" />
             <div>
               <p className="metric-label">Campos Calculados</p>
-              <p className="metric-value">{customFields.filter(f => f.formula).length}</p>
+              <p className="metric-value">{customFields?.filter(f => f.formula).length || 0}</p>
             </div>
           </div>
         </div>
@@ -340,7 +237,7 @@ export default function CustomFieldsPage() {
             <TrendingUp className="w-8 h-8 text-orange-600" />
             <div>
               <p className="metric-label">KPIs Customizados</p>
-              <p className="metric-value">{customFields.filter(f => f.category === 'kpi').length}</p>
+              <p className="metric-value">{customFields?.filter(f => f.category === 'kpi').length || 0}</p>
             </div>
           </div>
         </div>
@@ -356,15 +253,15 @@ export default function CustomFieldsPage() {
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
           }`}
         >
-          Todos ({customFields.length})
+          Todos ({customFields?.length || 0})
         </button>
         {categories.map((category) => {
-          const count = customFields.filter(f => f.category === category.value).length;
+          const count = customFields?.filter(f => f.category === category.value).length || 0;
           const Icon = category.icon;
           return (
             <button
               key={category.value}
-              onClick={() => setActiveCategory(category.value as any)}
+              onClick={() => setActiveCategory(category.value)}
               className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
                 activeCategory === category.value
                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
@@ -445,14 +342,14 @@ export default function CustomFieldsPage() {
                         {field.validation?.min !== undefined && (
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Valor Mínimo:</span>
-                            <div className="font-medium">{field.validation.min}</div>
+                            <div className="font-medium">{String(field.validation.min)}</div>
                           </div>
                         )}
                         
                         {field.validation?.max !== undefined && (
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Valor Máximo:</span>
-                            <div className="font-medium">{field.validation.max}</div>
+                            <div className="font-medium">{String(field.validation.max)}</div>
                           </div>
                         )}
                       </div>
@@ -605,7 +502,7 @@ export default function CustomFieldsPage() {
                     </label>
                     <select
                       value={editingField.type || 'number'}
-                      onChange={(e) => setEditingField({ ...editingField, type: e.target.value as any })}
+                      onChange={(e) => setEditingField({ ...editingField, type: e.target.value as CustomField['type'] })}
                       className="input-field"
                     >
                       {fieldTypes.map(type => (
@@ -622,7 +519,7 @@ export default function CustomFieldsPage() {
                     </label>
                     <select
                       value={editingField.category || 'other'}
-                      onChange={(e) => setEditingField({ ...editingField, category: e.target.value as any })}
+                      onChange={(e) => setEditingField({ ...editingField, category: e.target.value as CustomFieldCategory })}
                       className="input-field"
                     >
                       {categories.map(category => (
@@ -641,7 +538,7 @@ export default function CustomFieldsPage() {
                     </label>
                     <input
                       type="number"
-                      value={editingField.value || 0}
+                      value={typeof editingField.value === 'number' ? editingField.value : 0}
                       onChange={(e) => setEditingField({ ...editingField, value: Number(e.target.value) })}
                       className="input-field"
                       step="0.01"
@@ -703,7 +600,7 @@ export default function CustomFieldsPage() {
                       <label className="flex items-center">
                         <input
                           type="checkbox"
-                          checked={editingField.validation?.required || false}
+                          checked={Boolean(editingField.validation?.required)}
                           onChange={(e) => setEditingField({
                             ...editingField,
                             validation: {
@@ -723,7 +620,7 @@ export default function CustomFieldsPage() {
                       </label>
                       <input
                         type="number"
-                        value={editingField.validation?.min || ''}
+                        value={editingField.validation?.min ? String(editingField.validation.min) : ''}
                         onChange={(e) => setEditingField({
                           ...editingField,
                           validation: {
@@ -742,7 +639,7 @@ export default function CustomFieldsPage() {
                       </label>
                       <input
                         type="number"
-                        value={editingField.validation?.max || ''}
+                        value={editingField.validation?.max ? String(editingField.validation.max) : ''}
                         onChange={(e) => setEditingField({
                           ...editingField,
                           validation: {

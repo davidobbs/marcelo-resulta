@@ -1,0 +1,316 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Building,
+  TrendingUp,
+  Users,
+  Wrench,
+  Calculator,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle,
+  RefreshCw,
+  AlertCircle,
+  Minus,
+  DollarSign,
+} from 'lucide-react';
+import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
+import { useAppStore, useFinancialData, useActions } from '@/stores/useAppStore';
+import { formatCurrency } from '@/utils/format';
+import { toast } from 'sonner';
+
+interface FlowStep {
+  id: string;
+  title: string;
+}
+
+const flowSteps: FlowStep[] = [
+  { id: 'basic-info', title: 'Informações Básicas' },
+  { id: 'revenues', title: 'Receitas' },
+  { id: 'personnel', title: 'Pessoal' },
+  { id: 'operational', title: 'Operacionais' },
+  { id: 'finalize', title: 'Finalização' },
+];
+
+// Configurações de categorias
+const revenueCategories = [
+  {
+    key: 'fieldRental',
+    name: 'Aluguel de Campos',
+    icon: Building,
+    color: 'text-green-600',
+    fields: [
+      { key: 'regularRentals', label: 'Aluguéis Regulares', placeholder: 'Ex: 25.000' },
+      { key: 'tournaments', label: 'Torneios', placeholder: 'Ex: 8.000' },
+    ],
+  },
+  // ... adicione outras categorias conforme necessário
+];
+
+const personnelCategories = [
+  {
+    key: 'technicalStaff',
+    name: 'Comissão Técnica',
+    fields: [
+      { key: 'headCoach', label: 'Técnico Principal', placeholder: 'Ex: 15.000' },
+    ],
+  },
+  // ...
+];
+
+const operationalCategories = [
+  {
+    key: 'facilities',
+    name: 'Instalações e Infraestrutura',
+    fields: [
+      { key: 'rent', label: 'Aluguel/Cessão', placeholder: 'Ex: 25.000' },
+    ],
+  },
+  // ...
+];
+
+export default function FinancialInputPage() {
+  const { recalculate } = useFinancialCalculations();
+  const { club } = useAppStore();
+  const financialData = useFinancialData();
+  const { updateClub, updateFinancialData, triggerRecalculation } = useActions();
+
+  const [currentStep, setCurrentStep] = useState(0);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Autosalvamento a cada 30s
+  const autoSave = useCallback(async () => {
+    if (!hasChanges) return;
+    setIsSaving(true);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('club-financial-input', JSON.stringify(financialData));
+      }
+      setLastSaved(new Date());
+      setHasChanges(false);
+      toast.success('Progresso salvo automaticamente!');
+    } catch {
+      toast.error('Não foi possível salvar os dados.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [financialData, hasChanges]);
+
+  useEffect(() => {
+    const interval = setInterval(() => autoSave(), 30000);
+    return () => clearInterval(interval);
+  }, [autoSave]);
+
+  // Alterações básicas do clube
+  const handleClubChange = (field: keyof typeof club, value: string | number) => {
+    updateClub({ ...club, [field]: value });
+    setHasChanges(true);
+  };
+
+  // Alterações financeiras genéricas
+  const handleFinancialChange = (path: (string | number)[], value: number) => {
+    const dataCopy = JSON.parse(JSON.stringify(financialData));
+    let obj: any = dataCopy;
+    for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
+    obj[path[path.length - 1]] = value;
+    updateFinancialData(dataCopy);
+    setHasChanges(true);
+  };
+
+  const calculateTotals = () => {
+    const revenueTotal = Object.values(financialData.revenues || {}).reduce(
+      (sum, cat) => sum + Object.values(cat as any).filter(v => typeof v === 'number').reduce((s: number, v: any) => s + v, 0),
+      0
+    );
+    const costTotal = Object.values(financialData.costs || {}).reduce(
+      (sum, cat) => sum + Object.values(cat as any).filter(v => typeof v === 'number').reduce((s: number, v: any) => s + v, 0),
+      0
+    );
+    return { revenueTotal, costTotal, profit: revenueTotal - costTotal };
+  };
+
+  const nextStep = () => {
+    if (currentStep < flowSteps.length - 1) setCurrentStep(currentStep + 1);
+  };
+  const prevStep = () => {
+    if (currentStep > 0) setCurrentStep(currentStep - 1);
+  };
+
+  const handleFinalize = async () => {
+    setIsCalculating(true);
+    try {
+      await autoSave();
+      triggerRecalculation();
+      setTimeout(() => {
+        recalculate();
+        setIsCalculating(false);
+        toast.success('Análises geradas!');
+      }, 1500);
+    } catch {
+      toast.error('Erro na finalização.');
+      setIsCalculating(false);
+    }
+  };
+
+  const totals = calculateTotals();
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Configuração Financeira</h1>
+          <p>Etapa {currentStep + 1} de {flowSteps.length}</p>
+          {lastSaved && <span>Último salvamento: {lastSaved.toLocaleTimeString()}</span>}
+        </div>
+        <div className="flex items-center gap-3">
+          {isSaving && <RefreshCw className="animate-spin" />}
+          {hasChanges && !isSaving && <AlertCircle />}
+        </div>
+      </div>
+
+      {/* Resumo Financeiro */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="p-4 bg-green-50 rounded-lg">
+          <Minus className="text-green-600" />
+          <p>Total Receitas: {formatCurrency(totals.revenueTotal)}</p>
+        </div>
+        <div className="p-4 bg-red-50 rounded-lg">
+          <Minus className="text-red-600" />
+          <p>Total Custos: {formatCurrency(totals.costTotal)}</p>
+        </div>
+        <div className="p-4 bg-blue-50 rounded-lg">
+          <DollarSign className="text-blue-600" />
+          <p>Lucro: {formatCurrency(totals.profit)}</p>
+        </div>
+      </div>
+
+      {/* Conteúdo das Etapas */}
+      <div className="space-y-6">
+        {currentStep === 0 && (
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label>Nome do Clube</label>
+              <input
+                type="text"
+                value={club.name || ''}
+                onChange={e => handleClubChange('name', e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            </div>
+            <div>
+              <label>Mercado</label>
+              <input
+                type="text"
+                value={club.market || ''}
+                onChange={e => handleClubChange('market', e.target.value)}
+                className="w-full border p-2 rounded"
+              />
+            </div>
+          </div>
+        )}
+        {currentStep === 1 && (
+          <div className="space-y-6">
+            {revenueCategories.map(category => (
+              <div key={category.key} className="p-4 bg-white rounded shadow">
+                <h2 className="font-semibold">{category.name}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  {category.fields.map(field => (
+                    <div key={field.key}>
+                      <label>{field.label}</label>
+                      <input
+                        type="number"
+                        value={(financialData.revenues?.[category.key]?.[field.key] as number) || ''}
+                        onChange={e => handleFinancialChange(['revenues', category.key, field.key], parseFloat(e.target.value))}
+                        placeholder={field.placeholder}
+                        className="w-full border p-2 rounded"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {currentStep === 2 && (
+          <div className="space-y-6">
+            {personnelCategories.map(category => (
+              <div key={category.key} className="p-4 bg-white rounded shadow">
+                <h2 className="font-semibold">{category.name}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  {category.fields.map(field => (
+                    <div key={field.key}>
+                      <label>{field.label}</label>
+                      <input
+                        type="number"
+                        value={(financialData.costs?.[category.key]?.[field.key] as number) || ''}
+                        onChange={e => handleFinancialChange(['costs', category.key, field.key], parseFloat(e.target.value))}
+                        placeholder={field.placeholder}
+                        className="w-full border p-2 rounded"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {currentStep === 3 && (
+          <div className="space-y-6">
+            {operationalCategories.map(category => (
+              <div key={category.key} className="p-4 bg-white rounded shadow">
+                <h2 className="font-semibold">{category.name}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  {category.fields.map(field => (
+                    <div key={field.key}>
+                      <label>{field.label}</label>
+                      <input
+                        type="number"
+                        value={(financialData.costs?.operational?.[category.key]?.[field.key] as number) || ''}
+                        onChange={e => handleFinancialChange(['costs', 'operational', category.key, field.key], parseFloat(e.target.value))}
+                        placeholder={field.placeholder}
+                        className="w-full border p-2 rounded"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {currentStep === 4 && (
+          <div className="space-y-6">
+            <button
+              onClick={handleFinalize}
+              disabled={isCalculating}
+              className="btn-primary w-full py-2 flex items-center justify-center gap-2"
+            >
+              {isCalculating ? <RefreshCw className="animate-spin" /> : <Calculator />}
+              {isCalculating ? 'Processando...' : 'Gerar Análises'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Navegação entre etapas */}
+      <div className="flex justify-between">
+        <button onClick={prevStep} disabled={currentStep === 0} className="btn-secondary">
+          <ArrowLeft /> Anterior
+        </button>
+        {currentStep < flowSteps.length - 1 ? (
+          <button onClick={nextStep} className="btn-primary">
+            Próximo <ArrowRight />
+          </button>
+        ) : (
+          <div className="flex items-center gap-2 text-green-600">
+            <CheckCircle /> Concluído
+          </div>
+        )}
+      </div>
+    </div>
+  );
+} 

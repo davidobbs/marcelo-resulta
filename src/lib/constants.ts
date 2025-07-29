@@ -1,5 +1,22 @@
 import type { Market } from '@/types';
 
+// Novas interfaces para tipagem
+interface IndustryBenchmark {
+  avgRevenuePerField: number;
+  avgProfitMargin: number;
+  avgOccupancy: number;
+  paybackPeriod: number;
+  roiExpected: number;
+}
+
+interface InvestmentCost {
+  fieldConstruction: number;
+  equipment: number;
+  facilitySetup: number;
+  workingCapital: number;
+  licensing: number;
+}
+
 // Configurações de mercado (convertidas do Python)
 export const MARKETS: Record<string, Market> = {
   Brasil: {
@@ -95,7 +112,7 @@ export const SEASONAL_FACTORS: Record<string, number[]> = {
 };
 
 // Benchmarks da indústria por mercado
-export const INDUSTRY_BENCHMARKS: Record<string, any> = {
+export const INDUSTRY_BENCHMARKS: Record<string, IndustryBenchmark> = {
   Brasil: {
     avgRevenuePerField: 150000, // R$ por quadra/ano
     avgProfitMargin: 0.15,
@@ -120,7 +137,7 @@ export const INDUSTRY_BENCHMARKS: Record<string, any> = {
 };
 
 // Custos de investimento base por mercado
-export const INVESTMENT_COSTS: Record<string, any> = {
+export const INVESTMENT_COSTS: Record<string, InvestmentCost> = {
   Brasil: {
     fieldConstruction: 120000, // R$ por quadra
     equipment: 25000, // Equipamentos por quadra

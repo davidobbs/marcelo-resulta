@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { 
   TrendingUp, 
   DollarSign, 
   Target, 
   BarChart3,
   Calendar,
-  Building2,
   Calculator,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
   RefreshCw,
-  Settings,
   FileText,
   PieChart,
   Zap,
@@ -21,73 +19,56 @@ import {
   CheckCircle2,
   AlertTriangle
 } from 'lucide-react';
-import { useAppStore, useFinancialData } from '@/stores/useAppStore';
+import { useAppStore, useFinancialData, FinancialData } from '@/stores/useAppStore';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
 import { formatCurrency, formatPercentage } from '@/utils/format';
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 export default function DashboardPage() {
-  const { club, market, projections, kpis, analysis } = useAppStore();
+  const { club, market, projections, analysis } = useAppStore();
   const financialData = useFinancialData();
-  const { recalculate, baseFieldRevenue, investmentRequirements, operationalCosts } = useFinancialCalculations();
+  const { recalculate, revenues, costs, investment } = useFinancialCalculations();
   const [isCalculating, setIsCalculating] = useState(false);
   const [lastCalculated, setLastCalculated] = useState<Date | null>(null);
 
-  // Função para executar recálculo
   const handleRecalculate = async () => {
     setIsCalculating(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simula processamento
-      const results = recalculate();
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
+      recalculate();
       setLastCalculated(new Date());
-      
-      // Feedback para o usuário
-      console.log('Resultados do recálculo:', results);
-    } catch (error) {
-      console.error('Erro ao recalcular:', error);
+      toast.success('Análise financeira recalculada com sucesso!');
+    } catch {
+      toast.error('Ocorreu um erro ao recalcular a análise.');
     } finally {
       setIsCalculating(false);
     }
   };
 
-  // Verificar se dados financeiros foram inseridos
-  const hasFinancialData = () => {
-    if (!financialData) return false;
+  const hasFinancialData = (data: FinancialData | null): boolean => {
+    if (!data) return false;
     
-    const totalRevenues = Object.values(financialData.revenues).reduce((total, category) => {
-      if (typeof category === 'object' && category !== null) {
-        return total + Object.values(category).reduce((sum: number, val: any) => 
-          sum + (typeof val === 'number' ? val : 0), 0);
-      }
-      return total;
-    }, 0);
+    const hasRevenues = Object.values(data.revenues).some(category => 
+      Object.values(category).reduce((sum: number, value: unknown) => sum + (typeof value === 'number' ? value : 0), 0) > 0
+    );
+      
+    const hasCosts = Object.values(data.costs).some(category => 
+      Object.values(category).reduce((sum: number, value: unknown) => sum + (typeof value === 'number' ? value : 0), 0) > 0
+    );
 
-    const totalCosts = Object.values(financialData.costs).reduce((total, category) => {
-      if (typeof category === 'object' && category !== null) {
-        return total + Object.values(category).reduce((sum: number, subCategory: any) => {
-          if (typeof subCategory === 'object' && subCategory !== null) {
-            return sum + Object.values(subCategory).reduce((subSum: number, val: any) => 
-              subSum + (typeof val === 'number' ? val : 0), 0);
-          }
-          return sum + (typeof subCategory === 'number' ? subCategory : 0);
-        }, 0);
-      }
-      return total;
-    }, 0);
-
-    return totalRevenues > 0 || totalCosts > 0;
+    return hasRevenues || hasCosts;
   };
 
-  // Calcular métricas baseadas nos dados reais
   const calculateRealMetrics = () => {
-    const monthlyRevenue = baseFieldRevenue || 45000;
-    const annualRevenue = monthlyRevenue * 12;
-    const monthlyCosts = operationalCosts / 12;
-    const annualCosts = operationalCosts;
+    const monthlyRevenue = revenues?.monthly || 0;
+    const annualRevenue = revenues?.annual || 0;
+    const monthlyCosts = costs?.monthly || 0;
+    const annualCosts = costs?.annual || 0;
     const ebitda = annualRevenue - annualCosts;
-    const ebitdaMargin = ebitda / annualRevenue;
-    const roiProjected = analysis?.valuation?.roi || 0.283;
-    const paybackYears = analysis?.valuation?.paybackPeriod || (investmentRequirements?.total ? investmentRequirements.total / annualRevenue : 3.2);
+    const ebitdaMargin = annualRevenue > 0 ? ebitda / annualRevenue : 0;
+    const roiProjected = analysis?.valuation?.returnOnInvestment || 0;
+    const paybackYears = analysis?.valuation?.paybackPeriod || (investment?.total && annualRevenue > 0 ? investment.total / annualRevenue : 0);
 
     return {
       monthlyRevenue,
@@ -102,7 +83,7 @@ export default function DashboardPage() {
   };
 
   const metrics = calculateRealMetrics();
-  const dataStatus = hasFinancialData();
+  const dataStatus = hasFinancialData(financialData);
 
   // Fluxo de análise recomendado
   const analysisFlow = [
@@ -367,20 +348,20 @@ export default function DashboardPage() {
           <div className="card-body space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
               <span className="text-gray-600 dark:text-gray-400">Infraestrutura</span>
-              <span className="font-medium">{formatCurrency(investmentRequirements?.fieldConstruction || 0)}</span>
+              <span className="font-medium">{formatCurrency(investment?.construction || 0)}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
               <span className="text-gray-600 dark:text-gray-400">Equipamentos</span>
-              <span className="font-medium">{formatCurrency(investmentRequirements?.equipment || 0)}</span>
+              <span className="font-medium">{formatCurrency(investment?.equipment || 0)}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-700">
               <span className="text-gray-600 dark:text-gray-400">Capital de Giro</span>
-              <span className="font-medium">{formatCurrency(investmentRequirements?.workingCapital || 0)}</span>
+              <span className="font-medium">{formatCurrency(investment?.workingCapital || 0)}</span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="font-medium">Total</span>
               <span className="font-bold text-purple-600">
-                {formatCurrency(investmentRequirements?.total || 0)}
+                {formatCurrency(investment?.total || 0)}
               </span>
             </div>
           </div>

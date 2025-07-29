@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { 
   Calculator,
   TrendingUp,
@@ -13,30 +13,25 @@ import {
   AlertTriangle,
   Info,
   RefreshCw,
-  Download,
   Eye,
   EyeOff
 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
-import { useAnalysis, useProjections } from '@/stores/useAppStore';
+import { useAnalysis } from '@/stores/useAppStore';
 import { formatCurrency, formatPercentage, formatPeriod } from '@/utils/format';
 
 export default function ViabilidadePage() {
-  const { viability, projections, recalculate } = useFinancialCalculations();
+  const { viability, recalculate } = useFinancialCalculations();
   const analysis = useAnalysis();
-  const storedProjections = useProjections();
   const [selectedScenario, setSelectedScenario] = useState<'pessimista' | 'realista' | 'otimista'>('realista');
   const [showDetails, setShowDetails] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
 
-  // Função para recálculo
   const handleRecalculate = async () => {
     setIsCalculating(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
       recalculate();
-    } catch (error) {
-      console.error('Erro ao recalcular:', error);
     } finally {
       setIsCalculating(false);
     }
@@ -47,7 +42,7 @@ export default function ViabilidadePage() {
     npv: viability?.npv || analysis?.valuation?.npv || 850000,
     irr: viability?.irr || analysis?.valuation?.irr || 0.283,
     paybackPeriod: viability?.paybackPeriod || analysis?.valuation?.paybackPeriod || 3.2,
-    roi: viability?.roi || analysis?.valuation?.roi || 0.283,
+    returnOnInvestment: viability?.returnOnInvestment || analysis?.valuation?.returnOnInvestment || 0.283,
     breakEvenPoint: viability?.breakEvenPoint || 18
   };
 
@@ -124,13 +119,13 @@ export default function ViabilidadePage() {
     },
     {
       name: 'Retorno sobre Investimento (ROI)',
-      value: viabilityData.roi,
+      value: viabilityData.returnOnInvestment,
       format: 'percentage',
       description: 'Retorno percentual sobre investimento',
-      status: viabilityData.roi > 0.2 ? 'positive' : 'negative',
+      status: viabilityData.returnOnInvestment > 0.2 ? 'positive' : 'negative',
       icon: Target,
       benchmark: 0.2,
-      interpretation: viabilityData.roi > 0.2 ? 'ROI atrativo' : 'ROI baixo'
+      interpretation: viabilityData.returnOnInvestment > 0.2 ? 'ROI atrativo' : 'ROI baixo'
     }
   ];
 
@@ -241,7 +236,7 @@ export default function ViabilidadePage() {
                     ? `border-blue-500 ${scenario.bgColor}`
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                 }`}
-                onClick={() => setSelectedScenario(key as any)}
+                onClick={() => setSelectedScenario(key as 'pessimista' | 'realista' | 'otimista')}
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className={`font-semibold ${scenario.color}`}>

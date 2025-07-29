@@ -1,30 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { 
   Calendar,
   TrendingUp,
   BarChart3,
   DollarSign,
   RefreshCw,
-  Download,
-  Filter,
   Settings,
   LineChart,
-  PieChart,
   Target,
-  Edit3,
-  Save,
   X,
   Calculator
 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
-import { useProjections, useAppStore } from '@/stores/useAppStore';
+import { useAppStore } from '@/stores/useAppStore';
 import { formatCurrency, formatPercentage } from '@/utils/format';
+import { FinancialProjection } from '@/types';
 
 export default function ProjecoesPage() {
   const { projections, recalculate } = useFinancialCalculations();
-  const storedProjections = useProjections();
   const { market } = useAppStore();
   const [viewType, setViewType] = useState<'table' | 'chart'>('table');
   const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'costs' | 'profit' | 'cashFlow'>('revenue');
@@ -34,26 +29,19 @@ export default function ProjecoesPage() {
   const [customGrowthRate, setCustomGrowthRate] = useState(market?.growthPotential || 0.12);
   const [customInflationRate, setCustomInflationRate] = useState(market?.inflationRate || 0.06);
 
-  // Função para recálculo
   const handleRecalculate = async () => {
     setIsCalculating(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
       recalculate();
-    } catch (error) {
-      console.error('Erro ao recalcular:', error);
     } finally {
       setIsCalculating(false);
     }
   };
 
-  // Usar projeções do hook ou do store
-  const currentProjections = projections?.length > 0 ? projections : storedProjections;
-
-  // Gerar projeções padrão se não existirem
-  const generateDefaultProjections = () => {
+  const generateDefaultProjections = (): FinancialProjection[] => {
     const currentYear = new Date().getFullYear();
-    const defaultProjections = [];
+    const defaultProjections: FinancialProjection[] = [];
     
     for (let i = 0; i < 12; i++) {
       const year = currentYear + i;
@@ -66,41 +54,56 @@ export default function ProjecoesPage() {
       const revenue = baseRevenue * growthFactor;
       const costs = baseCosts * inflationFactor;
       const profit = revenue - costs;
-      const cashFlow = profit * 0.9; // Aproximação
+      const cashFlow = profit * 0.9;
 
       defaultProjections.push({
         year,
         revenue: {
           total: revenue,
-          breakdown: {
-            fieldRental: revenue * 0.60,
-            membership: revenue * 0.20,
-            sponsorship: revenue * 0.10,
-            soccerSchool: revenue * 0.08,
-            other: revenue * 0.02
-          }
+          fieldRental: { total: revenue * 0.6, regularRentals: revenue * 0.6, tournaments: 0, corporateEvents: 0, seasonalAdjustment: 0 },
+          membership: { total: revenue * 0.2, monthlyFees: revenue * 0.2, annualFees: 0, initationFees: 0, familyPackages: 0, corporateMembers: 0 },
+          soccerSchool: { total: revenue * 0.08, monthlyTuition: revenue * 0.08, enrollmentFees: 0, camps: 0, privateClasses: 0, tournaments: 0 },
+          sponsorship: { total: revenue * 0.1, mainSponsor: revenue * 0.1, jerseySponsors: 0, facilityNaming: 0, equipmentSponsors: 0, eventSponsors: 0, digitalSponsors: 0 },
+          merchandise: { total: 0, jerseys: 0, accessories: 0, souvenirs: 0, equipment: 0 },
+          events: { total: 0, corporateEvents: 0, privateParties: 0, tournaments: 0, camps: 0, other: 0 },
+          foodBeverage: { total: 0, restaurant: 0, bar: 0, snackBar: 0, catering: 0, vending: 0 },
+          other: [],
         },
         costs: {
           total: costs,
-          personnel: costs * 0.60,
-          operational: costs * 0.40
+          personnel: { total: costs * 0.6, technicalStaff: {total:0, headCoach:0, assistantCoaches:0, physicalTrainer:0, goalkeeper:0, analyst:0, other:0}, players: {total: costs*0.6, salaries: costs*0.6, bonuses:0, benefits:0, laborCharges:0, medicalInsurance:0}, administrativeStaff: {total:0, management:0, accounting:0, legal:0, hr:0, marketing:0, other:0}, supportStaff: {total:0, security:0, cleaning:0, maintenance:0, reception:0, other:0} },
+          facilities: { total: costs * 0.4, maintenance: costs * 0.4, cleaning: 0, security: 0, landscaping: 0, repairs: 0 },
+          utilities: { total: 0, electricity: 0, water: 0, gas: 0, internet: 0, phone: 0, waste: 0 },
+          marketing: { total: 0, digitalMarketing: 0, traditionalMedia: 0, events: 0, sponsorships: 0, materials: 0 },
+          administrative: { total: 0, accounting: 0, legal: 0, consulting: 0, software: 0, officeSupplies: 0, banking: 0 },
+          insurance: { total: 0, property: 0, liability: 0, equipmentInsurance: 0, workersCompensation: 0, other: 0 },
+          regulatory: { total: 0, licenses: 0, inspections: 0, compliance: 0, taxes: 0, other: 0 },
+          equipment: { total: 0, fieldsEquipment: 0, sportsEquipment: 0, technology: 0, vehicles: 0, other: 0 },
+          medical: { total: 0, teamDoctor: 0, physiotherapy: 0, supplements: 0, medicalExams: 0, treatments: 0 },
+          transportation: { total: 0, teamTransport: 0, accommodation: 0, meals: 0, fuel: 0, vehicleMaintenance: 0 },
+          hospitality: { total: 0, guestMeals: 0, entertainment: 0, gifts: 0, events: 0 },
+          maintenance: { total: 0, preventive: 0, corrective: 0, supplies: 0, contracts: 0 },
+          technology: { total: 0, software: 0, hardware: 0, telecommunications: 0, support: 0 },
+          other: [],
         },
+        profit: profit,
         taxes: {
           total: profit > 0 ? profit * (market?.taxRate || 0.163) : 0,
-          rate: market?.taxRate || 0.163
+          corporateTax: 0, vat: 0, socialContributions: 0, municipalTaxes: 0
         },
         cashFlow: {
           operational: cashFlow,
           investment: i === 0 ? -600000 : 0,
           financing: 0,
           net: i === 0 ? cashFlow - 600000 : cashFlow,
-          accumulated: 0 // Será calculado depois
+          accumulated: 0
         },
         metrics: {
           grossMargin: (revenue - costs) / revenue,
           netMargin: (profit - (profit > 0 ? profit * 0.163 : 0)) / revenue,
           ebitda: profit,
-          ebitdaMargin: profit / revenue,
+          ebit: profit, // Adicionando a propriedade ebit
+          netProfit: profit - (profit > 0 ? profit * 0.163 : 0),
           roa: 0.15,
           roe: 0.20,
           debtToEquity: 0.3,
@@ -119,38 +122,8 @@ export default function ProjecoesPage() {
     return defaultProjections;
   };
 
-  const dataToDisplay = currentProjections?.length > 0 ? currentProjections : generateDefaultProjections();
-
-  // Filtrar dados pelo range selecionado
+  const dataToDisplay = projections?.length > 0 ? projections : generateDefaultProjections();
   const filteredData = dataToDisplay.slice(yearRange.start, yearRange.end + 1);
-
-  // Dados para gráficos
-  const chartData = {
-    labels: filteredData.map(p => p.year.toString()),
-    datasets: [
-      {
-        label: 'Receitas',
-        data: filteredData.map(p => p.revenue.total),
-        borderColor: '#22c55e',
-        backgroundColor: '#22c55e20',
-        tension: 0.4
-      },
-      {
-        label: 'Custos',
-        data: filteredData.map(p => p.costs.total),
-        borderColor: '#ef4444',
-        backgroundColor: '#ef444420',
-        tension: 0.4
-      },
-      {
-        label: 'Lucro',
-        data: filteredData.map(p => p.revenue.total - p.costs.total),
-        borderColor: '#3b82f6',
-        backgroundColor: '#3b82f620',
-        tension: 0.4
-      }
-    ]
-  };
 
   // Métricas resumo
   const summaryMetrics = {
@@ -449,7 +422,7 @@ export default function ProjecoesPage() {
                 {['revenue', 'costs', 'profit', 'cashFlow'].map((metric) => (
                   <button
                     key={metric}
-                    onClick={() => setSelectedMetric(metric as any)}
+                    onClick={() => setSelectedMetric(metric as 'revenue' | 'costs' | 'profit' | 'cashFlow')}
                     className={`px-3 py-1 text-xs rounded-md transition-colors ${
                       selectedMetric === metric
                         ? 'bg-blue-600 text-white'
@@ -513,19 +486,19 @@ export default function ProjecoesPage() {
                   <div className="grid grid-cols-2 gap-2 text-sm">
                                          <div className="flex justify-between">
                        <span className="text-gray-500">Aluguel:</span>
-                       <span>{formatCurrency((projection.revenue as any).breakdown?.fieldRental || 0)}</span>
+                       <span>{formatCurrency(projection.revenue.fieldRental?.total || 0)}</span>
                      </div>
                      <div className="flex justify-between">
                        <span className="text-gray-500">Mensalidades:</span>
-                       <span>{formatCurrency((projection.revenue as any).breakdown?.membership || 0)}</span>
+                       <span>{formatCurrency(projection.revenue.membership?.total || 0)}</span>
                      </div>
                      <div className="flex justify-between">
                        <span className="text-gray-500">Patrocínios:</span>
-                       <span>{formatCurrency((projection.revenue as any).breakdown?.sponsorship || 0)}</span>
+                       <span>{formatCurrency(projection.revenue.sponsorship?.total || 0)}</span>
                      </div>
                      <div className="flex justify-between">
                        <span className="text-gray-500">Escolinha:</span>
-                       <span>{formatCurrency((projection.revenue as any).breakdown?.soccerSchool || 0)}</span>
+                       <span>{formatCurrency(projection.revenue.soccerSchool?.total || 0)}</span>
                      </div>
                   </div>
                 </div>
@@ -553,14 +526,14 @@ export default function ProjecoesPage() {
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                                         <div className="flex justify-between">
-                       <span className="text-gray-500">Pessoal:</span>
-                       <span>{formatCurrency((projection.costs as any).personnel || 0)}</span>
-                     </div>
-                     <div className="flex justify-between">
-                       <span className="text-gray-500">Operacional:</span>
-                       <span>{formatCurrency((projection.costs as any).operational || 0)}</span>
-                     </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Pessoal:</span>
+                      <span>{formatCurrency(projection.costs.personnel?.total || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Outros Custos:</span>
+                      <span>{formatCurrency((projection.costs.total) - (projection.costs.personnel?.total || 0))}</span>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Impostos:</span>
                       <span>{formatCurrency(projection.taxes.total)}</span>

@@ -5,13 +5,17 @@ import {
   TrendingUp, 
   Calculator, 
   Target,
-  DollarSign,
   BarChart3,
   PieChart,
   Info,
-  AlertTriangle,
-  TrendingDown
+  AlertTriangle
 } from 'lucide-react';
+
+interface Scenario {
+  wacc: number;
+  growth: number;
+  value: number;
+}
 
 export default function ValuationPage() {
   const [selectedMethod, setSelectedMethod] = useState('dcf');
@@ -136,7 +140,7 @@ export default function ValuationPage() {
   );
 
   const sensitivityAnalysis = () => {
-    const scenarios = [];
+    const scenarios: Scenario[] = [];
     const waccRange = [0.08, 0.10, 0.12, 0.14, 0.16];
     const growthRange = [0.10, 0.125, 0.15, 0.175, 0.20];
     
