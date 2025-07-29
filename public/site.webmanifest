@@ -1,0 +1,19 @@
+{
+  "name": "Club Finance Pilot",
+  "short_name": "CFP",
+  "description": "Sistema de Análise Financeira para Clubes de Futebol",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1f77b4",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["business", "finance", "sports"],
+  "lang": "pt-BR"
+} 
