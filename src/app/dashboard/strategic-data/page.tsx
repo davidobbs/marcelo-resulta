@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-nocheck
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -17,7 +15,6 @@ import {
   Save
 } from 'lucide-react';
 import { useAppStore } from '@/stores/useAppStore';
-// @ts-ignore - Temporary disable strict typing for strategic data
 import type { 
   ClubBasicInfo, 
   FootballField, 
@@ -338,6 +335,7 @@ export default function StrategicDataPage() {
       interestRate: 0.15,
       termMonths: 60,
       provider: 'Banco Exemplo',
+      monthlyPayment: 0, // Adicionado valor padrão
     };
     setFinancing([...financing, newFinancing]);
     setHasChanges(true);

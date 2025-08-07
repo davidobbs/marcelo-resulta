@@ -22,7 +22,6 @@ import { formatCurrency, formatPercentage, formatPeriod } from '@/utils/format';
 
 export default function ViabilidadePage() {
   const { viability, recalculate } = useFinancialCalculations();
-  const analysis = useAnalysis();
   const [selectedScenario, setSelectedScenario] = useState<'pessimista' | 'realista' | 'otimista'>('realista');
   const [showDetails, setShowDetails] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -39,11 +38,11 @@ export default function ViabilidadePage() {
 
   // Dados de viabilidade
   const viabilityData = {
-    npv: viability?.npv || analysis?.valuation?.npv || 850000,
-    irr: viability?.irr || analysis?.valuation?.irr || 0.283,
-    paybackPeriod: viability?.paybackPeriod || analysis?.valuation?.paybackPeriod || 3.2,
-    returnOnInvestment: viability?.returnOnInvestment || analysis?.valuation?.returnOnInvestment || 0.283,
-    breakEvenPoint: viability?.breakEvenPoint || 18
+    npv: viability?.npv || 0,
+    irr: viability?.irr || 0,
+    paybackPeriod: viability?.paybackPeriod || 0,
+    roi: viability?.roi || 0,
+    breakEvenPoint: viability?.breakEvenPoint || 0
   };
 
   // Cenários de análise
@@ -119,13 +118,13 @@ export default function ViabilidadePage() {
     },
     {
       name: 'Retorno sobre Investimento (ROI)',
-      value: viabilityData.returnOnInvestment,
+      value: viabilityData.roi,
       format: 'percentage',
       description: 'Retorno percentual sobre investimento',
-      status: viabilityData.returnOnInvestment > 0.2 ? 'positive' : 'negative',
+      status: viabilityData.roi > 0.2 ? 'positive' : 'negative',
       icon: Target,
       benchmark: 0.2,
-      interpretation: viabilityData.returnOnInvestment > 0.2 ? 'ROI atrativo' : 'ROI baixo'
+      interpretation: viabilityData.roi > 0.2 ? 'ROI atrativo' : 'ROI baixo'
     }
   ];
 
@@ -517,4 +516,4 @@ export default function ViabilidadePage() {
       </div>
     </div>
   );
-} 
+}

@@ -52,21 +52,17 @@ export default function KPIsPage() {
     const allKpis: KPIMetric[] = [];
     for (const categoryKey in strategicKPIs) {
       const kpiGroup = strategicKPIs[categoryKey as keyof typeof strategicKPIs];
-      if (kpiGroup && typeof kpiGroup === 'object') {
-        for (const kpiId of Object.keys(kpiGroup)) {
-          const kpiData = (kpiGroup as Record<string, unknown>)[kpiId] as KPIMetricType;
-          if (kpiData) {
-            allKpis.push({
-              ...kpiData,
-              id: kpiId,
-              category: categoryKey,
-              icon: categoryConfig[categoryKey]?.icon || Target,
-              color: categoryConfig[categoryKey]?.color || 'text-gray-600',
-              description: kpiData.name,
-              trendValue: Math.random() * 10,
-            });
-          }
-        }
+      if (Array.isArray(kpiGroup)) { // Verifica se é um array
+        kpiGroup.forEach((kpiData: KPIMetricType) => {
+          allKpis.push({
+            ...kpiData,
+            id: `${categoryKey}-${kpiData.name.replace(/\s/g, '_').toLowerCase()}`, // Gerar ID único
+            category: categoryKey,
+            icon: categoryConfig[categoryKey]?.icon || Target,
+            color: categoryConfig[categoryKey]?.color || 'text-gray-600',
+            description: kpiData.name,
+          });
+        });
       }
     }
     return allKpis;
@@ -299,7 +295,7 @@ export default function KPIsPage() {
                     </span>
                     <div className={`flex items-center gap-1 text-sm ${getTrendColor(kpi.trend)}`}>
                       <TrendIcon className="h-3 w-3" />
-                      <span>{Math.abs(kpi.trendValue || 0).toFixed(1)}%</span>
+                      <span>{kpi.trend === 'up' ? '+' : kpi.trend === 'down' ? '-' : ''}{Math.abs(kpi.value - kpi.target).toFixed(1)}%</span>
                     </div>
                   </div>
                 </div>

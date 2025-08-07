@@ -1,4 +1,4 @@
-import type { Currency } from '@/types';
+// import type { Currency } from '@/types';
 import { FORMAT_CONFIG } from '@/lib/constants';
 
 /**
@@ -67,7 +67,7 @@ export function formatNumber(
  */
 export function formatCompactNumber(
   value: number,
-  currency?: Currency,
+  currency?: string,
   locale = 'pt-BR'
 ): string {
   const prefixes = [

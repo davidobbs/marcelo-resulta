@@ -48,20 +48,21 @@ export function calculateDepreciation(
  * Calcula carga tributária baseada na configuração do mercado
  */
 export function calculateTaxBurden(revenue: number, profit: number, market: Market) {
+
   const taxes: Record<string, number> = {};
   
   if (market.name === 'Brasil') {
     taxes.simplesNacional = revenue * 0.08; // Aproximação Simples Nacional
-    taxes.iss = revenue * (market.issRate || 0.05);
-    taxes.pisCofins = revenue * (market.pisCofins || 0.0365);
+    taxes.iss = revenue * market.issRate;
+    taxes.pisCofins = revenue * market.pisCofins;
     taxes.irpj = profit > 0 ? profit * market.corporateTax : 0;
-    taxes.csll = profit > 0 ? profit * (market.socialContribution || 0.09) : 0;
+    taxes.csll = profit > 0 ? profit * market.socialContribution : 0;
   } else if (market.name === 'Europa') {
-    taxes.vat = revenue * (market.vatRate || 0.20);
+    taxes.vat = revenue * market.vatRate;
     taxes.corporateTax = profit > 0 ? profit * market.corporateTax : 0;
-    taxes.socialSecurity = revenue * (market.socialSecurity || 0.15);
+    taxes.socialSecurity = revenue * market.socialSecurity;
   } else if (market.name === 'Emirados Árabes') {
-    taxes.vat = revenue * (market.vatRate || 0.05);
+    taxes.vat = revenue * market.vatRate;
     taxes.corporateTax = profit > 0 ? profit * market.corporateTax : 0;
   }
   
@@ -156,11 +157,10 @@ export function calculateInvestmentRequirements(
   
   return {
     construction: fieldConstruction,
-    equipment,
     licenses: licensing,
     workingCapital,
     marketing: facilityCosts,
-    other: 0,
+    other: equipment,
     total
 };
 } 

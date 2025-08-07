@@ -4,7 +4,7 @@
   "description": "Sistema de Análise Financeira para Clubes de Futebol",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --require ./preload.js ./node_modules/next/dist/bin/next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -43,6 +43,7 @@
     "next-themes": "^0.3.0",
     "numeral": "^2.0.6",
     "postcss": "^8.4.40",
+    "punycode": "^2.3.1",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
     "react-datepicker": "^7.3.0",
@@ -65,6 +66,7 @@
     "@testing-library/jest-dom": "^6.4.7",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.2",
+    "@types/jest": "^30.0.0",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "eslint": "^8.57.0",
@@ -76,7 +78,8 @@
     "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^15.2.7",
     "prettier": "^3.3.3",
-    "prettier-plugin-tailwindcss": "^0.6.5"
+    "prettier-plugin-tailwindcss": "^0.6.5",
+    "worker-loader": "^3.0.8"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

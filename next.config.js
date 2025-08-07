@@ -1,18 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-
+  // Configurações básicas
+  swcMinify: true,
+  
+  // Configurações de compilação
   typescript: {
     ignoreBuildErrors: false,
   },
   eslint: {
     ignoreDuringBuilds: false,
   },
-  env: {
-    CUSTOM_KEY: 'club-finance-pilot',
-  },
-  images: {
-    domains: ['localhost'],
-  },
+  
+  // Redirecionamentos
   async redirects() {
     return [
       {
@@ -22,15 +21,27 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config) => {
+  
+  // Configurações webpack simplificadas
+  webpack: (config, { dev, isServer }) => {
+    // Otimizações para desenvolvimento
+    if (dev) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
+    
+    // Configurações de fallback
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
       net: false,
       tls: false,
     };
+    
     return config;
   },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

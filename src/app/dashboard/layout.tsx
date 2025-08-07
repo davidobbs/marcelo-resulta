@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { PageLoader } from '@/components/ui/PageLoader';
 import {
   BarChart3,
   Calculator,
@@ -19,6 +20,9 @@ import {
   HelpCircle,
   Database,
   Edit3,
+  Users,
+  ShieldCheck, // Ícone para ativos de jogadores
+  FileText
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -28,6 +32,18 @@ const navigation = [
     href: '/dashboard',
     icon: Home,
     description: 'Dashboard principal com resumo executivo',
+  },
+  {
+    name: 'Analytics Dashboard',
+    href: '/dashboard/analytics',
+    icon: BarChart3,
+    description: 'Dashboard avançado com métricas em tempo real',
+  },
+  {
+    name: 'Variáveis Financeiras',
+    href: '/dashboard/financial-variables',
+    icon: Calculator,
+    description: 'Configuração de variáveis e fórmulas financeiras',
   },
   {
     name: 'Entrada de Dados',
@@ -40,6 +56,18 @@ const navigation = [
     href: '/dashboard/dre',
     icon: BarChart3,
     description: 'Demonstração do Resultado do Exercício',
+  },
+  {
+    name: 'Investidores',
+    href: '/dashboard/investors',
+    icon: Users,
+    description: 'Gestão de investidores e participação',
+  },
+  {
+    name: 'Ativos (Jogadores)',
+    href: '/dashboard/player-assets',
+    icon: ShieldCheck,
+    description: 'Gestão de passes de atletas como ativos',
   },
   {
     name: 'Capital de Giro',
@@ -84,16 +112,22 @@ const navigation = [
     description: 'Avaliação do clube',
   },
   {
-    name: 'Análise Estratégica',
-    href: '/dashboard/strategic-analysis',
+    name: 'Análise de Cenários',
+    href: '/dashboard/scenario-analysis',
     icon: Target,
-    description: 'Análise estratégica de mercado',
+    description: 'Análise de sensibilidade e cenários',
   },
   {
-    name: 'Dados Estratégicos',
-    href: '/dashboard/strategic-data',
+    name: 'Relatórios',
+    href: '/dashboard/reports',
+    icon: FileText,
+    description: 'Central de relatórios e análises',
+  },
+  {
+    name: 'Pipeline de Dados',
+    href: '/dashboard/data-pipeline',
     icon: Database,
-    description: 'Configuração de dados estratégicos',
+    description: 'Engenharia de dados e processamento',
   },
   {
     name: 'Campos Customizados',
@@ -121,23 +155,7 @@ const navigation = [
   },
 ];
 
-const secondaryNavigation = [
-  {
-    name: 'Configurações',
-    href: '/dashboard/settings',
-    icon: Settings,
-  },
-  {
-    name: 'Exportar Dados',
-    href: '/dashboard/export',
-    icon: Download,
-  },
-  {
-    name: 'Ajuda',
-    href: '/dashboard/help',
-    icon: HelpCircle,
-  },
-];
+const secondaryNavigation: any[] = [];
 
 export default function DashboardLayout({
   children,
@@ -328,12 +346,14 @@ export default function DashboardLayout({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.15 }}
           >
-            {children}
+            <Suspense fallback={<PageLoader isLoading={true} message="Carregando página..." />}>
+              {children}
+            </Suspense>
           </motion.main>
         </AnimatePresence>
       </div>
     </div>
   );
-} 
+}

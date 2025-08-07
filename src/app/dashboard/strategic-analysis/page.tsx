@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { ClientTime } from '@/components/ui/ClientOnly';
 import { 
   TrendingUp, 
   Target, 
@@ -145,7 +146,7 @@ export default function StrategicAnalysisPage() {
         
         <div className="mt-4 sm:mt-0 flex items-center gap-3">
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            Última atualização: {lastUpdate.toLocaleTimeString('pt-BR')}
+            Última atualização: <ClientTime date={lastUpdate} />
           </span>
           <button
             onClick={performAnalysis}
@@ -198,7 +199,7 @@ export default function StrategicAnalysisPage() {
               </div>
               <div className="card-body">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(strategicKPIs.financial).map(([, metric]) => 
+                  {strategicKPIs.financial.map((metric) => 
                     renderKPICard(metric, DollarSign)
                   )}
                 </div>
@@ -214,7 +215,7 @@ export default function StrategicAnalysisPage() {
               </div>
               <div className="card-body">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(strategicKPIs.operational).map(([, metric]) => 
+                  {strategicKPIs.operational.map((metric) => 
                     renderKPICard(metric, Settings)
                   )}
                 </div>
@@ -230,7 +231,7 @@ export default function StrategicAnalysisPage() {
               </div>
               <div className="card-body">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(strategicKPIs.customer).map(([, metric]) => 
+                  {strategicKPIs.customer.map((metric) => 
                     renderKPICard(metric, Users)
                   )}
                 </div>
@@ -246,7 +247,7 @@ export default function StrategicAnalysisPage() {
               </div>
               <div className="card-body">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(strategicKPIs.growth).map(([, metric]) => 
+                  {strategicKPIs.growth.map((metric) => 
                     renderKPICard(metric, TrendingUp)
                   )}
                 </div>
@@ -262,7 +263,7 @@ export default function StrategicAnalysisPage() {
               </div>
               <div className="card-body">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(strategicKPIs.sustainability).map(([, metric]) => 
+                  {strategicKPIs.sustainability.map((metric) => 
                     renderKPICard(metric, Leaf)
                   )}
                 </div>

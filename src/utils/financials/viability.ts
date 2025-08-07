@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import type {
   Market,
   FootballField,
@@ -8,7 +8,7 @@ import type {
 } from '@/types';
 import { calculateNPV, calculateIRR, calculatePaybackPeriod, calculateROI } from './metrics';
 import { calculateDCFValuation } from './valuation';
-import { calculateFieldRentalRevenue, calculateDetailedOperationalCosts } from './club-specific';
+import { calculateFieldRentalRevenue, calculateOperationalCosts } from './club-specific';
 import { generateCashFlows } from './helpers';
 import { enhancedSensitivityAnalysis } from './simulations';
 
@@ -46,6 +46,7 @@ export function calculateViabilityMetrics(
     breakEvenPoint,
     enterpriseValue: dcf.enterpriseValue,
     terminalValue: dcf.pvTerminal,
+    profitabilityIndex: 0, // Adicionado valor padrão
   };
 }
 
@@ -61,11 +62,11 @@ export function comprehensiveFootballClubAnalysis(
 ): ComprehensiveViabilityAnalysis {
   // Calcular receitas e custos detalhados
   const fieldRevenue = calculateFieldRentalRevenue(fields, market);
-  const operationalCosts = calculateDetailedOperationalCosts(fields, staff, market);
+  const operationalCosts = calculateOperationalCosts(fields, staff, market);
   
   // Receita total anual (simplificada)
   const annualRevenue = fieldRevenue.annual + 50000; // + outras receitas estimadas
-  const annualCosts = operationalCosts.total;
+  const annualCosts = operationalCosts.totalCosts;
   
   // Gerar fluxos de caixa
   const scenario = {
@@ -189,4 +190,4 @@ export function comprehensiveFootballClubAnalysis(
     riskAnalysis,
     sensitivityAnalysis
   };
-} 
+}

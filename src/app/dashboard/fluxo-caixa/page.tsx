@@ -36,20 +36,21 @@ export default function FluxoCaixaPage() {
 
   const cashFlowData: CashFlowItem[] = (projections || []).map((p, index) => {
     const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const cashFlow = p.cashFlow || { operational: 0, investment: 0, financing: 0, net: 0, accumulated: 0 };
     return {
       month: monthNames[index % 12],
-      operational: p.cashFlow.operational,
-      investment: p.cashFlow.investment,
-      financing: p.cashFlow.financing,
-      net: p.cashFlow.net,
-      accumulated: p.cashFlow.accumulated,
+      operational: cashFlow.operational,
+      investment: cashFlow.investment,
+      financing: cashFlow.financing,
+      net: cashFlow.net,
+      accumulated: cashFlow.accumulated,
     };
   });
 
   const totalInflows = cashFlowData.reduce((sum, item) => sum + item.operational + item.financing, 0);
   const totalOutflows = cashFlowData.reduce((sum, item) => sum + Math.abs(item.investment), 0);
   const totalNetFlow = totalInflows - totalOutflows;
-  const initialBalance = (projections?.[0]?.cashFlow.accumulated || 0) - (projections?.[0]?.cashFlow.net || 0);
+  const initialBalance = (projections?.[0]?.cashFlow?.accumulated || 0) - (projections?.[0]?.cashFlow?.net || 0);
   const finalBalance = cashFlowData[cashFlowData.length - 1]?.accumulated || 0;
   
   // O restante da lógica de cálculo e o JSX devem ser adaptados para essa nova estrutura.

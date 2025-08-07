@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { ClientTime } from '@/components/ui/ClientOnly';
 import {
   ArrowRight,
   ArrowLeft,
@@ -10,32 +11,21 @@ import {
 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
 import { useAppStore, useFinancialData, useActions } from '@/stores/useAppStore';
-
+import type { QuantifiableItem } from '@/types';
 import { toast } from 'sonner';
 import StepContent from './components/StepContent';
 import FinancialSummary from './components/FinancialSummary';
 import { flowSteps, revenueCategories, personnelCategories, operationalCategories } from './components/categories';
 import set from 'lodash/set';
+import cloneDeep from 'lodash/cloneDeep';
 
-// Função para somar valores numéricos em um objeto aninhado
-const sumNestedValues = (obj: Record<string, unknown>): number => {
-  let sum = 0;
-  for (const key in obj) {
-    if (typeof obj[key] === 'number') {
-      sum += obj[key];
-    } else if (typeof obj[key] === 'object' && obj[key] !== null) {
-      sum += sumNestedValues(obj[key] as Record<string, unknown>);
-    }
-  }
-  return sum;
-};
 
 
 export default function FinancialInputPage() {
-  const { recalculate } = useFinancialCalculations();
+  const { recalculate, totals } = useFinancialCalculations();
   const { club } = useAppStore();
   const financialData = useFinancialData();
-  const { updateClub, setFinancialData, triggerRecalculation } = useActions();
+  const { updateClub, updateFinancialData, triggerRecalculation } = useActions();
 
   const [currentStep, setCurrentStep] = useState(0);
   const [hasChanges, setHasChanges] = useState(false);
@@ -47,7 +37,6 @@ export default function FinancialInputPage() {
     if (!hasChanges) return;
     setIsSaving(true);
     try {
-      useAppStore.persist.rehydrate();
       setLastSaved(new Date());
       setHasChanges(false);
       toast.success('Progresso salvo automaticamente!');
@@ -59,7 +48,7 @@ export default function FinancialInputPage() {
   }, [hasChanges]);
 
   useEffect(() => {
-    const interval = setInterval(() => autoSave(), 60000); // Salva a cada 60 segundos
+    const interval = setInterval(() => autoSave(), 60000);
     return () => clearInterval(interval);
   }, [autoSave]);
 
@@ -68,17 +57,12 @@ export default function FinancialInputPage() {
     setHasChanges(true);
   };
 
-  const handleFinancialChange = (path: (string | number)[], value: number) => {
-    const newState = set({ ...financialData }, path, value);
-    setFinancialData(newState);
+  const handleFinancialChange = (path: string[], value: number | Partial<QuantifiableItem>) => {
+    const updatedData = cloneDeep(financialData);
+    set(updatedData, path, value);
+    updateFinancialData(updatedData);
     setHasChanges(true);
   };
-
-  const calculateTotals = useCallback(() => {
-    const revenueTotal = sumNestedValues(financialData.revenues || {});
-    const costTotal = sumNestedValues(financialData.costs || {});
-    return { revenueTotal, costTotal, profit: revenueTotal - costTotal };
-  }, [financialData]);
 
 
   const nextStep = () => {
@@ -93,18 +77,15 @@ export default function FinancialInputPage() {
     setIsCalculating(true);
     try {
       await autoSave();
-      triggerRecalculation(); 
-      recalculate(); 
+      triggerRecalculation();
+      await recalculate();
       toast.success('Análises e projeções geradas com sucesso!');
     } catch {
-      // Erro capturado e tratado via toast
       toast.error('Ocorreu um erro ao gerar as análises.');
     } finally {
       setIsCalculating(false);
     }
   };
-
-  const totals = calculateTotals();
 
   return (
     <div className="space-y-6">
@@ -115,7 +96,7 @@ export default function FinancialInputPage() {
             Etapa {currentStep + 1} de {flowSteps.length}:{' '}
             <span className="font-semibold">{flowSteps[currentStep].title}</span>
           </p>
-          {lastSaved && <span className="text-sm text-gray-500">Último salvamento: {lastSaved.toLocaleTimeString()}</span>}
+          {lastSaved && <span className="text-sm text-gray-500">Último salvamento: <ClientTime date={lastSaved} /></span>}
         </div>
         <div className="flex items-center gap-3 mt-2 sm:mt-0">
           <RefreshCw className={`animate-spin text-blue-500 ${isSaving ? 'opacity-100' : 'opacity-0'}`} />
@@ -171,4 +152,4 @@ export default function FinancialInputPage() {
       </div>
     </div>
   );
-} 
+}

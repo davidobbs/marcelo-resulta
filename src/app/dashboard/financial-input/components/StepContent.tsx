@@ -1,23 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as Accordion from '@radix-ui/react-accordion';
-import { ChevronDown, Calculator, RefreshCw } from 'lucide-react';
-import { ClubData } from '@/types';
-import { FinancialData } from '@/stores/useAppStore';
+import { ChevronDown, RefreshCw, Scale, Calculator, FilePlus2 } from 'lucide-react';
+import type { ClubData, FinancialData, QuantifiableItem } from '@/types';
 import { formatCurrency } from '@/utils/format';
+import get from 'lodash/get';
 
-// Tipagem para os campos e categorias
 interface Field {
   key: string;
   label: string;
   placeholder: string;
+  quantifiable?: boolean;
+  isSeparator?: false;
 }
+
+interface Separator {
+    key: string;
+    isSeparator: true;
+    label: string;
+    placeholder: string;
+}
+
+type FormField = Field | Separator;
 
 interface Category {
   key: string;
   name: string;
   icon: React.ElementType;
   color: string;
-  fields: Field[];
+  fields: FormField[];
+  isSpecial?: boolean;
 }
 
 interface StepContentProps {
@@ -25,7 +36,7 @@ interface StepContentProps {
   club: ClubData;
   financialData: FinancialData;
   handleClubChange: (field: keyof ClubData, value: string | number) => void;
-  handleFinancialChange: (path: string[], value: number) => void;
+  handleFinancialChange: (path: string[], value: number | Partial<QuantifiableItem>) => void;
   handleFinalize: () => void;
   isCalculating: boolean;
   revenueCategories: Category[];
@@ -33,103 +44,136 @@ interface StepContentProps {
   operationalCategories: Category[];
 }
 
-// Tipagem para props do InputField
-interface InputFieldProps {
-  path: string[];
-  value: number | string;
-  onChange: (path: string[], value: number) => void;
-  placeholder: string;
-}
-
-// Componente de Input reutilizável para consistência
-const InputField = ({ path, value, onChange, placeholder }: InputFieldProps) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value;
-    const numberValue = parseFloat(rawValue);
-    onChange(path, isNaN(numberValue) ? 0 : numberValue);
-  };
-
-  return (
+const InputField = ({ value, onChange, placeholder }: { value: number | string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void, placeholder: string }) => (
     <input
       type="number"
       value={value || ''}
-      onChange={handleChange}
+      onChange={onChange}
       placeholder={placeholder}
-      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
     />
+);
+
+const QuantifiableInputField = ({ path, value, onChange, placeholder }: { path: string[], value: number | QuantifiableItem, onChange: (path: string[], value: number | Partial<QuantifiableItem>) => void, placeholder: string }) => {
+  const [isDetailed, setIsDetailed] = useState(false);
+  const initialValue = typeof value === 'object' && value !== null ? value : { total: value || 0 };
+
+  const [details, setDetails] = useState<QuantifiableItem>({
+    total: initialValue.total || 0,
+    quantity: initialValue.quantity || 1,
+    unitPrice: initialValue.unitPrice || initialValue.total,
+    unitName: initialValue.unitName || 'un'
+  });
+
+  const stableOnChange = useCallback(onChange, [onChange]);
+
+  useEffect(() => {
+    if (isDetailed) {
+      const newTotal = (details.quantity || 0) * (details.unitPrice || 0);
+      stableOnChange(path, { ...details, total: newTotal });
+    }
+  }, [details, isDetailed, path, stableOnChange]);
+
+  const handleDetailChange = (field: keyof QuantifiableItem, fieldValue: string | number) => {
+    setDetails(prev => ({ ...prev, [field]: fieldValue }));
+  };
+  
+  const handleTotalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTotal = parseFloat(e.target.value) || 0;
+    stableOnChange(path, newTotal);
+  }
+
+  return (
+    <div className="relative">
+      <div className="flex items-center">
+        <input
+          type="number"
+          value={initialValue.total || ''}
+          onChange={handleTotalChange}
+          placeholder={placeholder}
+          disabled={isDetailed}
+          className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:bg-gray-100 dark:disabled:bg-gray-800"
+        />
+        <button onClick={() => setIsDetailed(!isDetailed)} className="p-2 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">
+          <Scale size={18} />
+        </button>
+      </div>
+      {isDetailed && (
+        <div className="grid grid-cols-3 gap-2 mt-2 p-2 border rounded-md bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+          <input type="number" value={details.quantity} onChange={e => handleDetailChange('quantity', parseFloat(e.target.value))} placeholder="Qtd" className="w-full border-gray-300 rounded-md dark:bg-gray-700" />
+          <input type="text" value={details.unitName} onChange={e => handleDetailChange('unitName', e.target.value)} placeholder="Unidade" className="w-full border-gray-300 rounded-md dark:bg-gray-700" />
+          <input type="number" value={details.unitPrice} onChange={e => handleDetailChange('unitPrice', parseFloat(e.target.value))} placeholder="Preço/Un." className="w-full border-gray-300 rounded-md dark:bg-gray-700" />
+        </div>
+      )}
+    </div>
   );
 };
 
-// Tipagem para props do CategoryAccordion
-interface CategoryAccordionProps {
-  categories: Category[];
-  financialData: FinancialData;
-  handleFinancialChange: (path: string[], value: number) => void;
-  basePath: string[];
-}
+const calculateCategoryTotal = (categoryData: Record<string, number | QuantifiableItem>): number => {
+    if (!categoryData) return 0;
+    return Object.values(categoryData).reduce((acc: number, fieldValue) => {
+        if (typeof fieldValue === 'number') {
+            return acc + fieldValue;
+        }
+        if (typeof fieldValue === 'object' && fieldValue !== null && typeof fieldValue.total === 'number') {
+            return acc + fieldValue.total;
+        }
+        return acc;
+    }, 0);
+};
 
-// Componente Accordion para exibir as categorias
-const CategoryAccordion = ({ categories, financialData, handleFinancialChange, basePath }: CategoryAccordionProps) => (
+const CategoryAccordion = ({ categories, financialData, handleFinancialChange, basePath }: { categories: Category[], financialData: FinancialData, handleFinancialChange: (path: string[], value: number | Partial<QuantifiableItem>) => void, basePath: string[] }) => (
   <Accordion.Root type="multiple" defaultValue={[categories[0]?.key]} className="space-y-4">
     {categories.map((category: Category) => {
       const Icon = category.icon;
-             // Calcula o total para a categoria usando navegação segura
-       let categoryData: Record<string, number> = {};
-       try {
-         if (basePath.length === 2) {
-           const data = (financialData as unknown as Record<string, Record<string, Record<string, number>>>)[basePath[0]]?.[basePath[1]]?.[category.key];
-           categoryData = (typeof data === 'object' && data !== null) ? data : {};
-         } else {
-           const data = (financialData as unknown as Record<string, Record<string, number>>)[basePath[0]]?.[category.key];
-           categoryData = (typeof data === 'object' && data !== null) ? data : {};
-         }
-       } catch {
-         categoryData = {};
-       }
-      
-      const total = Object.values(categoryData).reduce((sum: number, value: unknown) => 
-        sum + (typeof value === 'number' ? value : 0), 0);
+      const categoryData = get(financialData, [...basePath, category.key], {});
+      const total = calculateCategoryTotal(categoryData);
 
       return (
-        <Accordion.Item key={category.key} value={category.key} className="bg-white rounded-lg shadow-md overflow-hidden">
+        <Accordion.Item key={category.key} value={category.key} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
           <Accordion.Header>
-            <Accordion.Trigger className="flex justify-between items-center w-full p-4 font-semibold text-lg hover:bg-gray-50 transition-colors group">
+            <Accordion.Trigger className="flex justify-between items-center w-full p-4 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
               <div className="flex items-center gap-3">
                 <Icon className={`${category.color} w-6 h-6`} />
                 <span>{category.name}</span>
               </div>
               <div className="flex items-center gap-4">
-                <span className="text-base font-medium text-gray-600">{formatCurrency(total)}</span>
+                <span className="text-base font-medium text-gray-600 dark:text-gray-300">{formatCurrency(total)}</span>
                 <ChevronDown className="w-5 h-5 text-gray-500 transition-transform duration-300 group-data-[state=open]:rotate-180" />
               </div>
             </Accordion.Trigger>
           </Accordion.Header>
-          <Accordion.Content className="p-4 bg-gray-50 border-t">
+          <Accordion.Content className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t dark:border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-              {category.fields.map((field: Field) => {
-                const path = [...basePath, category.key, field.key];
-                // Navega de forma segura no objeto financialData
-                let value: number | string = '';
-                try {
-                  value = path.reduce((obj: unknown, key: string) => {
-                    if (obj && typeof obj === 'object' && key in obj) {
-                      return (obj as Record<string, unknown>)[key];
-                    }
-                    return '';
-                  }, financialData as unknown) as number | string;
-                } catch {
-                  value = '';
+              {category.fields.map((field, idx) => {
+                if (field.isSeparator) {
+                  return (
+                    <div key={`sep-${idx}`} className="md:col-span-2 lg:col-span-3 pt-2">
+                      <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 border-b dark:border-gray-600 pb-1">{field.label}</h4>
+                    </div>
+                  );
                 }
+
+                const path = [...basePath, category.key, field.key];
+                const value = get(financialData, path, 0);
 
                 return (
                   <div key={field.key}>
-                    <label className="block text-sm font-medium text-gray-700">{field.label}</label>
-                    <InputField
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
+                    {field.quantifiable ? (
+                      <QuantifiableInputField
                       path={path}
                       value={value}
                       onChange={handleFinancialChange}
                       placeholder={field.placeholder}
                     />
+                    ) : (
+                      <InputField
+                        value={value as number}
+                        onChange={(e) => handleFinancialChange(path, parseFloat(e.target.value) || 0)}
+                        placeholder={field.placeholder}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -140,6 +184,60 @@ const CategoryAccordion = ({ categories, financialData, handleFinancialChange, b
     })}
   </Accordion.Root>
 );
+
+const CustomFieldsAccordion = ({ type, financialData, handleFinancialChange }: { type: 'revenues' | 'costs', financialData: FinancialData, handleFinancialChange: (path: string[], value: number | Partial<QuantifiableItem>) => void }) => {
+    const fields = type === 'revenues' 
+        ? financialData.revenues.customRevenues 
+        : financialData.costs.customCosts;
+
+    if (!fields || fields.length === 0) {
+        return null;
+    }
+
+    const basePath = type === 'revenues' ? ['revenues', 'customRevenues'] : ['costs', 'customCosts'];
+    
+    const total = fields.reduce((acc, field) => acc + (Number(field.value) || 0), 0);
+
+    return (
+        <div className="mt-6">
+            <Accordion.Root type="single" defaultValue="custom-fields" collapsible>
+                <Accordion.Item value="custom-fields" className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+                    <Accordion.Header>
+                        <Accordion.Trigger className="flex justify-between items-center w-full p-4 font-semibold text-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                            <div className="flex items-center gap-3">
+                                <FilePlus2 className="text-cyan-600 w-6 h-6" />
+                                <span>Campos Customizados ({type === 'revenues' ? 'Receitas' : 'Custos'})</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-base font-medium text-gray-600 dark:text-gray-300">{formatCurrency(total)}</span>
+                                <ChevronDown className="w-5 h-5 text-gray-500 transition-transform duration-300 group-data-[state=open]:rotate-180" />
+                            </div>
+                        </Accordion.Trigger>
+                    </Accordion.Header>
+                    <Accordion.Content className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t dark:border-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                            {fields.map((field, index) => {
+                                const path = [...basePath, String(index), 'value'];
+                                
+                                return (
+                                    <div key={field.id}>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300" title={field.description || field.name}>{field.label}</label>
+                                        <InputField
+                                            value={field.value as number}
+                                            onChange={(e) => handleFinancialChange(path, parseFloat(e.target.value) || 0)}
+                                            placeholder={`Valor para ${field.label}`}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Accordion.Content>
+                </Accordion.Item>
+            </Accordion.Root>
+        </div>
+    );
+};
+
 
 const StepContent: React.FC<StepContentProps> = ({
   currentStep,
@@ -153,27 +251,26 @@ const StepContent: React.FC<StepContentProps> = ({
   personnelCategories,
   operationalCategories,
 }) => {
-  // Etapa 0: Informações Básicas
   if (currentStep === 0) {
     return (
-      <div className="p-4 bg-white rounded-lg shadow-md">
+      <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Nome do Clube</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome do Clube</label>
             <input
               type="text"
               value={club.name || ''}
               onChange={e => handleClubChange('name', e.target.value)}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">Número de Campos</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Número de Campos</label>
             <input
               type="number"
               value={club.numFields || 0}
               onChange={e => handleClubChange('numFields', parseInt(e.target.value, 10))}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400"
             />
           </div>
         </div>
@@ -181,48 +278,34 @@ const StepContent: React.FC<StepContentProps> = ({
     );
   }
 
-  // Etapa 1: Receitas
   if (currentStep === 1) {
     return (
-      <CategoryAccordion
-        categories={revenueCategories}
-        financialData={financialData}
-        handleFinancialChange={handleFinancialChange}
-        basePath={['revenues']}
-      />
-    );
+        <>
+            <CategoryAccordion categories={revenueCategories} financialData={financialData} handleFinancialChange={handleFinancialChange} basePath={['revenues']} />
+            <CustomFieldsAccordion type="revenues" financialData={financialData} handleFinancialChange={handleFinancialChange} />
+        </>
+    )
   }
 
-  // Etapa 2: Custos com Pessoal
   if (currentStep === 2) {
-    return (
-      <CategoryAccordion
-        categories={personnelCategories}
-        financialData={financialData}
-        handleFinancialChange={handleFinancialChange}
-        basePath={['costs', 'personnel']}
-      />
-    );
+    return <CategoryAccordion categories={personnelCategories} financialData={financialData} handleFinancialChange={handleFinancialChange} basePath={['costs', 'personnel']} />;
   }
 
-  // Etapa 3: Custos Operacionais
   if (currentStep === 3) {
+    const filteredOperationalCategories = operationalCategories.filter(c => c.key !== 'personnel');
     return (
-      <CategoryAccordion
-        categories={operationalCategories}
-        financialData={financialData}
-        handleFinancialChange={handleFinancialChange}
-        basePath={['costs']}
-      />
-    );
+        <>
+            <CategoryAccordion categories={filteredOperationalCategories} financialData={financialData} handleFinancialChange={handleFinancialChange} basePath={['costs']} />
+            <CustomFieldsAccordion type="costs" financialData={financialData} handleFinancialChange={handleFinancialChange} />
+        </>
+    )
   }
 
-  // Etapa 4: Finalização
   if (currentStep === 4) {
     return (
-      <div className="space-y-6 text-center p-8 bg-white rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold text-gray-800">Tudo pronto!</h2>
-        <p className="text-gray-600">
+      <div className="space-y-6 text-center p-8 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Tudo pronto!</h2>
+        <p className="text-gray-600 dark:text-gray-400">
           Você inseriu todos os dados necessários. Clique no botão abaixo para processar as informações e
           gerar suas análises financeiras completas, projeções e KPIs.
         </p>

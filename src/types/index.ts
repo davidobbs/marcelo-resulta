@@ -1,13 +1,213 @@
+export interface FinancialVariable {
+  id: string;
+  name: string;
+  formula: string;
+  value: number;
+  dependencies: string[];
+  category: 'revenue' | 'cost' | 'metric' | 'projection';
+  unit: 'currency' | 'percentage' | 'number' | 'days';
+  description: string;
+}
+
+export interface FinancialMetrics {
+  totalRevenue: number;
+  totalCosts: number;
+  netProfit: number;
+  profitMargin: number;
+  breakEvenPoint: number;
+  roi: number;
+}
+
+export interface FinancialProjection {
+  month: number;
+  revenue: number;
+  costs: number;
+  profit: number;
+  cumulativeProfit: number;
+  cashFlow?: { operational: number; investment: number; financing: number; net: number; accumulated: number; };
+  year?: number;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface ProjectionCard {
+  title: string;
+  currentValue: number;
+  projectedValue: number;
+  growth: number;
+  icon: React.ReactElement;
+  color: string;
+}
+
+export interface CustomField {
+  id: string;
+  label: string;
+  name: string;
+  value: string | number;
+  type: 'text' | 'number' | 'date' | 'currency' | 'percentage';
+  description?: string;
+  category?: string;
+  isEditable?: boolean;
+  isVisible?: boolean;
+}
+
 export interface ClubData {
   name: string;
   numFields: number;
   selectedMarket: string;
-  fieldTypes: {
-    name: string;
-    hourlyRate: number;
-    dailyHours: number;
-    occupancy: number;
-  }[];
+  fieldTypes: { name: string; hourlyRate: number; dailyHours: number; occupancy: number; }[];
+}
+
+interface PersonnelCostCategory {
+  total: number;
+  [key: string]: number;
+}
+
+interface PlayerCosts {
+  salaries: number;
+  bonuses: number;
+  benefits: { total: number; housing: number; transportation: number; other: number; };
+  laborCharges: number;
+  medicalInsurance: number;
+  imageRights: number;
+  performanceBonuses: number;
+  loyaltyBonuses: number;
+  thirteenthSalary: number;
+  vacation: number;
+}
+
+interface PersonnelCosts {
+  technicalStaff: PersonnelCostCategory;
+  players: PlayerCosts;
+  administrativeStaff: PersonnelCostCategory;
+  supportStaff: PersonnelCostCategory;
+  medicalStaff: PersonnelCostCategory;
+}
+
+export interface FinancialData {
+  revenues: {
+    fieldRental: Record<string, number | QuantifiableItem>;
+    membership: Record<string, number | QuantifiableItem>;
+    sponsorship: Record<string, number | QuantifiableItem>;
+    soccerSchool: Record<string, number | QuantifiableItem>;
+    events: Record<string, number | QuantifiableItem>;
+    merchandise: Record<string, number | QuantifiableItem>;
+    foodBeverage: Record<string, number | QuantifiableItem>;
+    broadcastRights: Record<string, number | QuantifiableItem>;
+    playerTransfers: Record<string, number | QuantifiableItem>;
+    ticketing: Record<string, number | QuantifiableItem>;
+    socialClub: Record<string, number | QuantifiableItem>;
+    prizesMoney: Record<string, number | QuantifiableItem>;
+    licensing: Record<string, number | QuantifiableItem>;
+    digitalRevenues: Record<string, number | QuantifiableItem>;
+    investments: Record<string, number | QuantifiableItem>;
+    customRevenues: CustomField[];
+  };
+  costs: {
+    personnel: PersonnelCosts;
+    facilities: Record<string, number | QuantifiableItem>;
+    utilities: Record<string, number | QuantifiableItem>;
+    medical: Record<string, number | QuantifiableItem>;
+    transportation: Record<string, number | QuantifiableItem>;
+    equipment: Record<string, number | QuantifiableItem>;
+    marketing: Record<string, number | QuantifiableItem>;
+    administrative: Record<string, number | QuantifiableItem>;
+    insurance: Record<string, number | QuantifiableItem>;
+    regulatory: Record<string, number | QuantifiableItem>;
+    technology: Record<string, number | QuantifiableItem>;
+    competitions: Record<string, number | QuantifiableItem>;
+    transfers: Record<string, number | QuantifiableItem>;
+    depreciation: Record<string, number | QuantifiableItem>;
+    financial: Record<string, number | QuantifiableItem>;
+    otherOperational: Record<string, number | QuantifiableItem>;
+    customCosts: CustomField[];
+  };
+  assets: { playerPassValue: PlayerAsset[] };
+  investors: Investor[];
+}
+
+export interface QuantifiableItem {
+  total: number;
+  quantity?: number;
+  unitPrice?: number;
+  unitName?: string;
+}
+
+export interface Investor {
+  id: string;
+  name: string;
+  investmentValue: number;
+  equityPercentage: number;
+}
+
+export interface PlayerAsset {
+  id: string;
+  playerName: string;
+  marketValue: number;
+  contractEndDate: string;
+  ownershipPercentage: number;
+}
+
+export interface KPIMetric {
+  name: string;
+  value: number;
+  target: number;
+  trend: string;
+  unit: string;
+  benchmark: number;
+}
+
+interface SensitivityResult {
+  variation: number;
+  netProfit: number;
+  profitMargin: number;
+  roi: number;
+}
+
+export interface SensitivityAnalysis {
+  variables: string[];
+  results: SensitivityResult[];
+}
+
+export interface Scenarios {
+  optimistic: FinancialProjection;
+  realistic: FinancialProjection;
+  pessimistic: FinancialProjection;
+}
+
+export interface InvestmentAnalysis {
+  valuation: ValuationMetrics;
+  sensitivity: SensitivityAnalysis;
+  scenarios: Scenarios;
+}
+
+export interface KPIData {
+  revenue: KPIMetric;
+  profitability: KPIMetric;
+  efficiency: KPIMetric;
+  financial: KPIMetric;
+}
+
+export interface StrategicKPIs {
+  financial: KPIMetric[];
+  operational: KPIMetric[];
+  customer: KPIMetric[];
+  growth: KPIMetric[];
+  sustainability: KPIMetric[];
+}
+
+export interface ValuationMetrics {
+  npv: number;
+  irr: number;
+  paybackPeriod: number;
+  profitabilityIndex: number;
+  roi: number;
+  breakEvenPoint: number;
+  enterpriseValue?: number;
+  terminalValue?: number;
 }
 
 export interface Market {
@@ -32,343 +232,48 @@ export interface Market {
   marketSizeFactor: number;
   competitionLevel: string;
   regulatoryComplexity: string;
-  // Propriedades adicionais para impostos específicos do país
-  socialContribution?: number;
-  vatRate?: number;
-  issRate?: number;
-  pisCofins?: number;
-  socialSecurity?: number;
+  socialContribution: number;
+  vatRate: number;
+  issRate: number;
+  pisCofins: number;
+  socialSecurity: number;
 }
 
-// Tipos detalhados para receitas
-export interface DetailedRevenue {
-  total: number;
-  fieldRental: {
-    total: number;
-    regularRentals: number;
-    tournaments: number;
-    corporateEvents: number;
-    seasonalAdjustment: number;
-  };
-  membership: {
-    total: number;
-    monthlyFees: number;
-    annualFees: number;
-    initationFees: number;
-    familyPackages: number;
-    corporateMembers: number;
-  };
-  soccerSchool: {
-    total: number;
-    monthlyTuition: number;
-    enrollmentFees: number;
-    camps: number;
-    privateClasses: number;
-    tournaments: number;
-  };
-  sponsorship: {
-    total: number;
-    mainSponsor: number;
-    jerseySponsors: number;
-    facilityNaming: number;
-    equipmentSponsors: number;
-    eventSponsors: number;
-    digitalSponsors: number;
-  };
-  merchandise: {
-    total: number;
-    jerseys: number;
-    accessories: number;
-    souvenirs: number;
-    equipment: number;
-  };
-  events: {
-    total: number;
-    corporateEvents: number;
-    privateParties: number;
-    tournaments: number;
-    camps: number;
-    other: number;
-  };
-  foodBeverage: {
-    total: number;
-    restaurant: number;
-    bar: number;
-    snackBar: number;
-    catering: number;
-    vending: number;
-  };
-  other: CustomField[];
-}
-
-// Tipos detalhados para custos operacionais
-export interface DetailedOperationalCosts {
-  total: number;
-  personnel: {
-    total: number;
-    technicalStaff: {
-      total: number;
-      headCoach: number;
-      assistantCoaches: number;
-      physicalTrainer: number;
-      goalkeeper: number;
-      analyst: number;
-      other: number;
-    };
-    players: {
-      total: number;
-      salaries: number;
-      bonuses: number;
-      benefits: number;
-      laborCharges: number;
-      medicalInsurance: number;
-    };
-    administrativeStaff: {
-      total: number;
-      management: number;
-      accounting: number;
-      legal: number;
-      hr: number;
-      marketing: number;
-      other: number;
-    };
-    supportStaff: {
-      total: number;
-      security: number;
-      cleaning: number;
-      maintenance: number;
-      reception: number;
-      other: number;
-    };
-  };
-  facilities: {
-    total: number;
-    maintenance: number;
-    cleaning: number;
-    security: number;
-    landscaping: number;
-    repairs: number;
-  };
-  utilities: {
-    total: number;
-    electricity: number;
-    water: number;
-    gas: number;
-    internet: number;
-    phone: number;
-    waste: number;
-  };
-  equipment: {
-    total: number;
-    fieldsEquipment: number;
-    sportsEquipment: number;
-    technology: number;
-    vehicles: number;
-    other: number;
-  };
-  marketing: {
-    total: number;
-    digitalMarketing: number;
-    traditionalMedia: number;
-    events: number;
-    sponsorships: number;
-    materials: number;
-  };
-  administrative: {
-    total: number;
-    accounting: number;
-    legal: number;
-    consulting: number;
-    software: number;
-    officeSupplies: number;
-    banking: number;
-  };
-  insurance: {
-    total: number;
-    property: number;
-    liability: number;
-    equipmentInsurance: number;
-    workersCompensation: number;
-    other: number;
-  };
-  regulatory: {
-    total: number;
-    licenses: number;
-    inspections: number;
-    compliance: number;
-    taxes: number;
-    other: number;
-  };
-  medical: {
-    total: number;
-    teamDoctor: number;
-    physiotherapy: number;
-    supplements: number;
-    medicalExams: number;
-    treatments: number;
-  };
-  transportation: {
-    total: number;
-    teamTransport: number;
-    accommodation: number;
-    meals: number;
-    fuel: number;
-    vehicleMaintenance: number;
-  };
-  hospitality: {
-    total: number;
-    guestMeals: number;
-    entertainment: number;
-    gifts: number;
-    events: number;
-  };
-  maintenance: {
-    total: number;
-    preventive: number;
-    corrective: number;
-    supplies: number;
-    contracts: number;
-  };
-  technology: {
-    total: number;
-    software: number;
-    hardware: number;
-    telecommunications: number;
-    support: number;
-  };
-  other: CustomField[];
-}
-
-export interface FinancialProjection {
-  year: number;
-  revenue: DetailedRevenue;
-  costs: DetailedOperationalCosts;
-  profit?: number;
-  taxes: {
-    total: number;
-    corporateTax: number;
-    vat: number;
-    socialContributions: number;
-    municipalTaxes: number;
-  };
-  cashFlow: {
-    operational: number;
-    investment: number;
-    financing: number;
-    net: number;
-    accumulated: number;
-  };
-  metrics: {
-    grossMargin: number;
-    netMargin: number;
-    ebitda: number;
-    ebit: number;
-    netProfit: number;
-    roa: number;
-    roe: number;
-    debtToEquity: number;
-    currentRatio: number;
-  };
-}
-
-export interface InvestmentAnalysis {
-  initialInvestment: InvestmentBreakdown;
-  projections: FinancialProjection[];
-  valuation: ValuationMetrics;
-  sensitivity: {
-    variables: SensitivityVariable[];
-    results: SensitivityResult[];
-  };
-  scenarios: {
-    optimistic: FinancialProjection[];
-    realistic: FinancialProjection[];
-    pessimistic: FinancialProjection[];
-    monteCarloResults: MonteCarloResult[];
-  };
-}
-
-export interface KPIMetric {
+interface Tax {
   name: string;
-  value: number;
-  unit: string;
-  trend: 'up' | 'down' | 'stable';
-  target: number;
-  benchmark: number;
-}
-
-export interface StrategicKPIs {
-  financial: {
-    revenueGrowthRate: KPIMetric;
-    profitMargin: KPIMetric;
-    cashFlowMargin: KPIMetric;
-    returnOnAssets: KPIMetric;
-    returnOnEquity: KPIMetric;
-    debtToEquityRatio: KPIMetric;
-    breakEvenPoint: KPIMetric;
-  };
-  operational: {
-    fieldUtilizationRate: KPIMetric;
-    averageRevenuePerField: KPIMetric;
-    membershipRetentionRate: KPIMetric;
-    staffProductivity: KPIMetric;
-    maintenanceCostRatio: KPIMetric;
-    energyEfficiency: KPIMetric;
-  };
-  customer: {
-    customerSatisfactionScore: KPIMetric;
-    netPromoterScore: KPIMetric;
-    averageCustomerLifetime: KPIMetric;
-    membershipGrowthRate: KPIMetric;
-    churnRate: KPIMetric;
-    averageRevenuePerCustomer: KPIMetric;
-  };
-  growth: {
-    membershipGrowth: KPIMetric;
-    revenueGrowth: KPIMetric;
-    marketExpansion: KPIMetric;
-    facilityExpansion: KPIMetric;
-  };
-  sustainability: {
-    energyEfficiency: KPIMetric;
-    wasteReduction: KPIMetric;
-    waterUsage: KPIMetric;
-    carbonFootprint: KPIMetric;
-  };
-}
-
-export interface KPIData {
-  revenue: Kpi;
-  profitability: Kpi;
-  efficiency: Kpi;
-  financial: Kpi;
-}
-
-export interface Kpi {
-  name: string;
-  value: number;
-  unit: string;
-  trend: string;
-  target: number;
-  benchmark: number;
-}
-
-export interface CustomField {
-  id: string;
-  name: string;
-  label: string;
-  type: 'text' | 'number' | 'currency' | 'percentage' | 'date' | 'boolean' | 'select';
-  category: string;
-  value: number;
-  formula?: string;
-  unit?: string;
-  validation: Record<string, unknown>;
-  isEditable: boolean;
-  isVisible: boolean;
-  dependencies?: string[];
+  rate: number;
+  type: 'corporate' | 'labor' | 'vat' | 'social_contribution' | 'other';
+  appliesTo: ('profits' | 'revenues' | 'salaries')[];
   description: string;
 }
 
-// Tipos adicionais para dados estratégicos
+export interface CountryProfile {
+  code: string;
+  name: string;
+  currency: { code: string; symbol: string; };
+  taxes: Tax[];
+  federationFees?: {
+    playerRegistration: number;
+    annualFee: number;
+  };
+}
+
+export interface ValuationParams {
+  updateOnline: boolean;
+  discountRate: number;
+  growthPotential: number;
+  marketSizeFactor: number;
+}
+
+export interface InvestmentBreakdown {
+  total: number;
+  construction?: number;
+  licenses?: number;
+  workingCapital?: number;
+  marketing?: number;
+  other?: number;
+}
+
 export interface ClubBasicInfo {
   name: string;
   foundedYear: number;
@@ -384,31 +289,23 @@ export interface ClubBasicInfo {
   contact: {
     phone: string;
     email: string;
-    website?: string;
-    socialMedia?: Record<string, string>;
   };
   targetAudience: string[];
-  mission?: string;
-  vision?: string;
-  values?: string[];
+  missionStatement?: string;
 }
 
 export interface FootballField {
   id: string;
   name: string;
-  type: 'grass' | 'synthetic' | 'sand' | 'futsal';
-  size: '11x11' | '7x7' | '5x5' | 'society';
-  dimensions: {
-    length: number;
-    width: number;
-  };
-  capacity?: number;
+  type: string;
+  dimensions: { length: number; width: number };
+  surfaceType: string;
+  lighting: boolean;
+  covered: boolean;
+  capacity: number;
   hourlyRate: number;
-  utilizationRate: number;
   maintenanceCost: number;
-  features: string[];
-  status: 'active' | 'maintenance' | 'construction';
-  amenities: string[];
+  utilizationRate: number;
 }
 
 export interface ClubFacility {
@@ -416,136 +313,116 @@ export interface ClubFacility {
   name: string;
   type: string;
   area: number;
-  capacity?: number;
-  description?: string;
-  features: string[];
-  maintenanceSchedule?: string;
-  status: 'active' | 'maintenance' | 'construction';
+  capacity: number;
+  monthlyOperatingCost: number;
+  monthlyRevenue?: number;
 }
 
 export interface StaffMember {
   id: string;
-  name: string;
-  role: string;
-  department: string;
-  contractType: 'CLT' | 'Freelancer' | 'Volunteer' | 'Partner';
-  salary?: number;
+  position: string;
+  level: string;
+  workload: string;
   monthlySalary: number;
-  benefits?: string[];
-  startDate: string;
-  certifications?: string[];
-  experience: number;
-  status: 'active' | 'inactive' | 'vacation';
+  contractType: string;
 }
 
 export interface ExternalFinancing {
   id: string;
-  type: 'loan' | 'investment' | 'grant' | 'sponsorship';
-  source: string;
+  type: string;
   amount: number;
-  interestRate?: number;
-  term?: number;
-  requirements?: string[];
-  status: 'applied' | 'approved' | 'received' | 'rejected';
-  applicationDate: string;
-  approvalDate?: string;
-  conditions?: string[];
+  interestRate: number;
+  termMonths: number;
+  monthlyPayment: number;
+  provider?: string;
+  collateral?: string;
 }
 
-// Tipos para análises
-export interface Currency {
-  code: string;
-  symbol: string;
-  name: string;
-}
-
-export interface InvestmentBreakdown {
-  construction: number;
-  equipment: number;
-  licenses: number;
-  workingCapital: number;
-  marketing: number;
-  other: number;
-  total: number;
-}
-
-export interface MonteCarloAnalysis {
-  scenarios: number;
-  variables: string[];
-  results: MonteCarloResult[];
-  confidence: {
-    level: number;
-    range: {
-      min: number;
-      max: number;
-    };
-  };
-}
-
-export interface MonteCarloResult {
-  scenario: number;
-  variables: Record<string, number>;
-  npv: number;
-  irr: number;
-  payback: number;
-}
-
-export interface EnhancedSensitivityAnalysis {
-  variables: SensitivityVariable[];
-  results: SensitivityResult[];
-  tornado: TornadoChart;
-}
-
-export interface SensitivityVariable {
-  name: string;
-  baseValue: number;
-  variation: number;
-  type: 'percentage' | 'absolute';
-}
-
-export interface SensitivityResult {
-  variable: string;
-  impact: {
-    low: number;
-    base: number;
-    high: number;
-  };
-  elasticity: number;
-}
-
-export interface TornadoChart {
-  variables: string[];
-  impacts: number[];
-}
-
-export interface ValuationMetrics {
+// Tipos para ComprehensiveViabilityAnalysis
+interface FinancialViability {
   npv: number;
   irr: number;
   paybackPeriod: number;
   profitabilityIndex: number;
-  breakEvenPoint: number;
-  returnOnInvestment: number;
+  modifiedIRR: number;
+  discountedPayback: number;
+  valueAtRisk: number;
+  expectedValue: number;
+}
+
+interface MarketViability {
+  marketSize: number;
+  marketGrowthRate: number;
+  competitivPosition: 'Líder' | 'Desafiante' | 'Seguidor' | 'Nicho';
+  marketShareProjection: number;
+  customerDemandForecast: {
+    period: string;
+    demandLevel: 'Baixa' | 'Média' | 'Alta';
+    estimatedVolume: number;
+    confidence: number;
+  }[];
+  competitivePressure: 'Baixa' | 'Média' | 'Alta';
+}
+
+interface OperationalViability {
+  locationScore: number;
+  infrastructureScore: number;
+  staffingScore: number;
+  operationalEfficiency: number;
+  scalabilityScore: number;
+  overallScore: number;
+}
+
+interface StrategicViability {
+  competitiveAdvantage: string[];
+  marketPosition: string;
+  swotAnalysis: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  strategicFit: number;
+  longTermSustainability: number;
+}
+
+interface Risk {
+  id: string;
+  category: 'Financeiro' | 'Operacional' | 'Mercado' | 'Estratégico';
+  description: string;
+  probability: number;
+  impact: number;
+  riskScore: number;
+  timeframe: 'Curto Prazo' | 'Médio Prazo' | 'Longo Prazo';
+}
+
+interface MitigationStrategy {
+  riskId: string;
+  strategy: string;
+  cost: number;
+  effectiveness: number;
+  timeframe: string;
+}
+
+interface ContingencyPlan {
+  trigger: string;
+  actions: string[];
+  resources: number;
+  responsibleParty: string;
+}
+
+interface RiskAnalysis {
+  risks: Risk[];
+  overallRiskLevel: 'Baixo' | 'Médio' | 'Alto';
+  mitigationStrategies: MitigationStrategy[];
+  contingencyPlans: ContingencyPlan[];
 }
 
 export interface ComprehensiveViabilityAnalysis {
-  financial: ValuationMetrics;
-  market: {
-    size: number;
-    growth: number;
-    competition: string;
-    opportunity: number;
-  };
-  operational: {
-    efficiency: number;
-    capacity: number;
-    scalability: number;
-  };
-  risks: {
-    financial: number;
-    operational: number;
-    market: number;
-    regulatory: number;
-  };
-  recommendations: string[];
-  score: number;
+  financialViability: FinancialViability;
+  marketViability: MarketViability;
+  operationalViability: OperationalViability;
+  strategicViability: StrategicViability;
+  riskAnalysis: RiskAnalysis;
+  sensitivityAnalysis: SensitivityAnalysis;
 }

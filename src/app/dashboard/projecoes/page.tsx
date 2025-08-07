@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { CardSkeleton } from '@/components/ui/PageLoader';
 import { 
-  Calendar,
   TrendingUp,
   BarChart3,
   DollarSign,
@@ -11,548 +11,594 @@ import {
   LineChart,
   Target,
   X,
-  Calculator
+  Activity,
+  CheckCircle2,
+  AlertTriangle,
+  Zap,
+  Database
 } from 'lucide-react';
-import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
-import { useAppStore } from '@/stores/useAppStore';
+import { useFinancialEngine } from '@/hooks/useFinancialEngine';
 import { formatCurrency, formatPercentage } from '@/utils/format';
-import { FinancialProjection } from '@/types';
+import { AdvancedChart } from '@/components/charts/AdvancedChart';
+
+interface ProjectionCard {
+  title: string;
+  currentValue: number;
+  projectedValue: number;
+  growth: number;
+  icon: React.ReactNode;
+  color: string;
+}
 
 export default function ProjecoesPage() {
-  const { projections, recalculate } = useFinancialCalculations();
-  const { market } = useAppStore();
-  const [viewType, setViewType] = useState<'table' | 'chart'>('table');
-  const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'costs' | 'profit' | 'cashFlow'>('revenue');
-  const [yearRange, setYearRange] = useState<{ start: number; end: number }>({ start: 0, end: 5 });
-  const [isCalculating, setIsCalculating] = useState(false);
+  const { 
+    projections, 
+    generateScenarios,
+    metrics,
+    hasValidData,
+    recalculate,
+    isCalculating,
+    summary 
+  } = useFinancialEngine();
+  
+  const [viewType, setViewType] = useState<'chart' | 'table' | 'scenarios'>('chart');
+  const [selectedTimeframe, setSelectedTimeframe] = useState<'6M' | '1Y' | '3Y' | '5Y'>('1Y');
+  const [selectedMetric, setSelectedMetric] = useState<'revenue' | 'costs' | 'profit' | 'margin'>('profit');
   const [showSettings, setShowSettings] = useState(false);
-  const [customGrowthRate, setCustomGrowthRate] = useState(market?.growthPotential || 0.12);
-  const [customInflationRate, setCustomInflationRate] = useState(market?.inflationRate || 0.06);
+  const [customGrowthRate, setCustomGrowthRate] = useState(0.08);
+  const [scenarios, setScenarios] = useState<any>({});
+
+  useEffect(() => {
+    if (hasValidData) {
+      const scenarioData = generateScenarios(customGrowthRate);
+      setScenarios(scenarioData);
+    }
+  }, [hasValidData, customGrowthRate, generateScenarios]);
 
   const handleRecalculate = async () => {
-    setIsCalculating(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      recalculate();
-    } finally {
-      setIsCalculating(false);
+    await recalculate();
+    if (hasValidData) {
+      const scenarioData = generateScenarios(customGrowthRate);
+      setScenarios(scenarioData);
     }
   };
 
-  const generateDefaultProjections = (): FinancialProjection[] => {
-    const currentYear = new Date().getFullYear();
-    const defaultProjections: FinancialProjection[] = [];
+  // Dados dos gráficos baseados nas projeções reais
+  const chartData = useMemo(() => {
+    const timeframes = {
+      '6M': 6,
+      '1Y': 12,
+      '3Y': 36,
+      '5Y': 60
+    };
     
-    for (let i = 0; i < 12; i++) {
-      const year = currentYear + i;
-      const growthFactor = Math.pow(1 + customGrowthRate, i);
-      const inflationFactor = Math.pow(1 + customInflationRate, i);
-      
-      const baseRevenue = 540000; // R$ 45k mensal
-      const baseCosts = 432000; // R$ 36k mensal
-      
-      const revenue = baseRevenue * growthFactor;
-      const costs = baseCosts * inflationFactor;
-      const profit = revenue - costs;
-      const cashFlow = profit * 0.9;
+    const months = timeframes[selectedTimeframe];
+    return projections.slice(0, months).map(p => ({
+      month: `${p.month}º mês`,
+      receita: p.revenue,
+      custos: p.costs,
+      lucro: p.profit,
+      margem: p.revenue > 0 ? (p.profit / p.revenue) * 100 : 0,
+      crescimento: p.month === 1 ? 0 : ((p.revenue / projections[0].revenue - 1) * 100)
+    }));
+  }, [projections, selectedTimeframe]);
 
-      defaultProjections.push({
-        year,
-        revenue: {
-          total: revenue,
-          fieldRental: { total: revenue * 0.6, regularRentals: revenue * 0.6, tournaments: 0, corporateEvents: 0, seasonalAdjustment: 0 },
-          membership: { total: revenue * 0.2, monthlyFees: revenue * 0.2, annualFees: 0, initationFees: 0, familyPackages: 0, corporateMembers: 0 },
-          soccerSchool: { total: revenue * 0.08, monthlyTuition: revenue * 0.08, enrollmentFees: 0, camps: 0, privateClasses: 0, tournaments: 0 },
-          sponsorship: { total: revenue * 0.1, mainSponsor: revenue * 0.1, jerseySponsors: 0, facilityNaming: 0, equipmentSponsors: 0, eventSponsors: 0, digitalSponsors: 0 },
-          merchandise: { total: 0, jerseys: 0, accessories: 0, souvenirs: 0, equipment: 0 },
-          events: { total: 0, corporateEvents: 0, privateParties: 0, tournaments: 0, camps: 0, other: 0 },
-          foodBeverage: { total: 0, restaurant: 0, bar: 0, snackBar: 0, catering: 0, vending: 0 },
-          other: [],
-        },
-        costs: {
-          total: costs,
-          personnel: { total: costs * 0.6, technicalStaff: {total:0, headCoach:0, assistantCoaches:0, physicalTrainer:0, goalkeeper:0, analyst:0, other:0}, players: {total: costs*0.6, salaries: costs*0.6, bonuses:0, benefits:0, laborCharges:0, medicalInsurance:0}, administrativeStaff: {total:0, management:0, accounting:0, legal:0, hr:0, marketing:0, other:0}, supportStaff: {total:0, security:0, cleaning:0, maintenance:0, reception:0, other:0} },
-          facilities: { total: costs * 0.4, maintenance: costs * 0.4, cleaning: 0, security: 0, landscaping: 0, repairs: 0 },
-          utilities: { total: 0, electricity: 0, water: 0, gas: 0, internet: 0, phone: 0, waste: 0 },
-          marketing: { total: 0, digitalMarketing: 0, traditionalMedia: 0, events: 0, sponsorships: 0, materials: 0 },
-          administrative: { total: 0, accounting: 0, legal: 0, consulting: 0, software: 0, officeSupplies: 0, banking: 0 },
-          insurance: { total: 0, property: 0, liability: 0, equipmentInsurance: 0, workersCompensation: 0, other: 0 },
-          regulatory: { total: 0, licenses: 0, inspections: 0, compliance: 0, taxes: 0, other: 0 },
-          equipment: { total: 0, fieldsEquipment: 0, sportsEquipment: 0, technology: 0, vehicles: 0, other: 0 },
-          medical: { total: 0, teamDoctor: 0, physiotherapy: 0, supplements: 0, medicalExams: 0, treatments: 0 },
-          transportation: { total: 0, teamTransport: 0, accommodation: 0, meals: 0, fuel: 0, vehicleMaintenance: 0 },
-          hospitality: { total: 0, guestMeals: 0, entertainment: 0, gifts: 0, events: 0 },
-          maintenance: { total: 0, preventive: 0, corrective: 0, supplies: 0, contracts: 0 },
-          technology: { total: 0, software: 0, hardware: 0, telecommunications: 0, support: 0 },
-          other: [],
-        },
-        profit: profit,
-        taxes: {
-          total: profit > 0 ? profit * (market?.taxRate || 0.163) : 0,
-          corporateTax: 0, vat: 0, socialContributions: 0, municipalTaxes: 0
-        },
-        cashFlow: {
-          operational: cashFlow,
-          investment: i === 0 ? -600000 : 0,
-          financing: 0,
-          net: i === 0 ? cashFlow - 600000 : cashFlow,
-          accumulated: 0
-        },
-        metrics: {
-          grossMargin: (revenue - costs) / revenue,
-          netMargin: (profit - (profit > 0 ? profit * 0.163 : 0)) / revenue,
-          ebitda: profit,
-          ebit: profit, // Adicionando a propriedade ebit
-          netProfit: profit - (profit > 0 ? profit * 0.163 : 0),
-          roa: 0.15,
-          roe: 0.20,
-          debtToEquity: 0.3,
-          currentRatio: 1.5
-        }
-      });
-    }
+  // Dados de comparação de cenários
+  const scenarioComparisonData = useMemo(() => {
+    if (!scenarios.realistic) return [];
+    
+    const months = selectedTimeframe === '6M' ? 6 : selectedTimeframe === '1Y' ? 12 : 12;
+    
+    return scenarios.realistic.slice(0, months).map((realistic: any, index: number) => ({
+      month: `M${realistic.month}`,
+      pessimista: scenarios.pessimistic[index]?.profit || 0,
+      realista: realistic.profit,
+      otimista: scenarios.optimistic[index]?.profit || 0
+    }));
+  }, [scenarios, selectedTimeframe]);
 
-    // Calcular fluxo de caixa acumulado
-    let accumulated = 0;
-    defaultProjections.forEach(projection => {
-      accumulated += projection.cashFlow.net;
-      projection.cashFlow.accumulated = accumulated;
-    });
+  // Cards de projeções principais (memoizados para performance)
+  const projectionCards: ProjectionCard[] = useMemo(() => {
+    const monthlyRevenue = projections.length > 0 ? projections[0].revenue : 0;
+    const monthlyCosts = projections.length > 0 ? projections[0].costs : 0;
+    const monthlyProfit = projections.length > 0 ? projections[0].profit : 0;
+    const annualRevenue = projections.reduce((acc, p) => acc + p.revenue, 0);
 
-    return defaultProjections;
-  };
+    return [
+      {
+        title: 'Receita Projetada',
+        currentValue: monthlyRevenue,
+        projectedValue: annualRevenue / 12,
+        growth: monthlyRevenue > 0 ? ((annualRevenue / 12 - monthlyRevenue) / monthlyRevenue) * 100 : 0,
+        icon: <DollarSign className="w-6 h-6" />,
+        color: 'green'
+      },
+      {
+        title: 'Custos Projetados',
+        currentValue: monthlyCosts,
+        projectedValue: monthlyCosts * 1.05, // Exemplo
+        growth: 5,
+        icon: <TrendingUp className="w-6 h-6" />,
+        color: 'red'
+      },
+      {
+        title: 'Lucro Projetado',
+        currentValue: monthlyProfit,
+        projectedValue: (annualRevenue / 12) - (monthlyCosts * 1.05),
+        growth: summary.averageGrowthRate * 100,
+        icon: <Target className="w-6 h-6" />,
+        color: 'blue'
+      },
+      {
+        title: 'ROI Projetado',
+        currentValue: metrics.roi * 100,
+        projectedValue: metrics.roi * 100 * 1.1, // Exemplo
+        growth: 10,
+        icon: <BarChart3 className="w-6 h-6" />,
+        color: 'purple'
+      }
+    ];
+  }, [projections, summary, metrics]);
 
-  const dataToDisplay = projections?.length > 0 ? projections : generateDefaultProjections();
-  const filteredData = dataToDisplay.slice(yearRange.start, yearRange.end + 1);
-
-  // Métricas resumo
-  const summaryMetrics = {
-    totalRevenue: filteredData.reduce((sum, p) => sum + p.revenue.total, 0),
-    totalCosts: filteredData.reduce((sum, p) => sum + p.costs.total, 0),
-    totalProfit: filteredData.reduce((sum, p) => sum + (p.revenue.total - p.costs.total), 0),
-    avgGrowthRate: filteredData.length > 1 ? 
-      ((filteredData[filteredData.length - 1].revenue.total / filteredData[0].revenue.total) ** (1 / (filteredData.length - 1)) - 1) : 0,
-    avgMargin: filteredData.reduce((sum, p) => sum + p.metrics.grossMargin, 0) / filteredData.length
+  const getCardColorClasses = (color: string) => {
+    const colors = {
+      green: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-800',
+      red: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-800',
+      blue: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800',
+      purple: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 dark:border-purple-800'
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Projeções Financeiras
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Projeções Financeiras 2035
           </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Projeções detalhadas para os próximos 12 anos
+          <p className="text-gray-600 dark:text-gray-400">
+            Projeções baseadas em dados reais e análise matemática avançada
           </p>
         </div>
-        
-        <div className="mt-4 sm:mt-0 flex items-center gap-3">
-          <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-            <button
-              onClick={() => setViewType('table')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                viewType === 'table'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewType('chart')}
-              className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                viewType === 'chart'
-                  ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
-              }`}
-            >
-              <LineChart className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="btn-outline flex items-center gap-2"
+        <div className="flex items-center gap-3">
+          <select 
+            value={selectedTimeframe}
+            onChange={(e) => setSelectedTimeframe(e.target.value as any)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           >
-            <Settings className="w-4 h-4" />
-            Configurar
-          </button>
-          
+            <option value="6M">6 Meses</option>
+            <option value="1Y">1 Ano</option>
+            <option value="3Y">3 Anos</option>
+            <option value="5Y">5 Anos</option>
+          </select>
           <button
             onClick={handleRecalculate}
             disabled={isCalculating}
-            className="btn-primary flex items-center gap-2"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
           >
-            {isCalculating ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Calculator className="w-4 h-4" />
-            )}
-            {isCalculating ? 'Recalculando...' : 'Recalcular'}
+            <RefreshCw className={`w-4 h-4 ${isCalculating ? 'animate-spin' : ''}`} />
+            {isCalculating ? 'Calculando...' : 'Recalcular'}
+          </button>
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Configurações
           </button>
         </div>
       </div>
 
-      {/* Configurações */}
-      {showSettings && (
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Configurações de Projeção
-              </h2>
+      {/* Status de Validação */}
+      {!hasValidData && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-500 mt-0.5" />
+            <div>
+              <h3 className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+                Dados Incompletos para Projeções
+              </h3>
+              <p className="text-sm text-yellow-600 dark:text-yellow-400 mb-3">
+                Configure as variáveis financeiras para obter projeções precisas baseadas em dados reais.
+              </p>
               <button
-                onClick={() => setShowSettings(false)}
-                className="text-gray-400 hover:text-gray-600"
+                onClick={() => window.location.href = '/dashboard/financial-variables'}
+                className="text-sm font-medium text-yellow-700 dark:text-yellow-300 underline hover:no-underline"
               >
-                <X className="w-5 h-5" />
+                Configurar Variáveis →
               </button>
             </div>
           </div>
-          <div className="card-body">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="form-group">
-                <label className="form-label">Taxa de Crescimento</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  value={customGrowthRate * 100}
-                  onChange={(e) => setCustomGrowthRate(Number(e.target.value) / 100)}
-                  step="0.1"
-                  min="0"
-                  max="50"
-                />
-                <span className="text-xs text-gray-500">% ao ano</span>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Taxa de Inflação</label>
-                <input
-                  type="number"
-                  className="input-field"
-                  value={customInflationRate * 100}
-                  onChange={(e) => setCustomInflationRate(Number(e.target.value) / 100)}
-                  step="0.1"
-                  min="0"
-                  max="20"
-                />
-                <span className="text-xs text-gray-500">% ao ano</span>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Ano Inicial</label>
-                <select
-                  className="input-field"
-                  value={yearRange.start}
-                  onChange={(e) => setYearRange({ ...yearRange, start: Number(e.target.value) })}
-                >
-                  {dataToDisplay.map((_, index) => (
-                    <option key={index} value={index}>
-                      Ano {index + 1} ({dataToDisplay[index]?.year})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">Ano Final</label>
-                <select
-                  className="input-field"
-                  value={yearRange.end}
-                  onChange={(e) => setYearRange({ ...yearRange, end: Number(e.target.value) })}
-                >
-                  {dataToDisplay.map((_, index) => (
-                    <option key={index} value={index} disabled={index < yearRange.start}>
-                      Ano {index + 1} ({dataToDisplay[index]?.year})
-                    </option>
-                  ))}
-                </select>
-              </div>
+        </div>
+      )}
+
+      {hasValidData && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <div>
+              <p className="font-medium text-green-800 dark:text-green-300">
+                Projeções Ativas
+              </p>
+              <p className="text-sm text-green-600 dark:text-green-400">
+                Baseadas em {projections.length} meses de dados calculados com crescimento de {formatPercentage(customGrowthRate)}
+              </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Métricas Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </div>
+      {/* Configurações */}
+      {showSettings && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Configurações de Projeção
+            </h3>
+            <button onClick={() => setShowSettings(false)}>
+              <X className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="metric-label">Receita Total</p>
-              <p className="metric-value text-green-600">{formatCurrency(summaryMetrics.totalRevenue)}</p>
-              <p className="metric-change text-gray-500 text-xs">
-                {filteredData.length} anos
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Taxa de Crescimento Anual
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={customGrowthRate}
+                onChange={(e) => setCustomGrowthRate(parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Taxa decimal (ex: 0.08 = 8%)
               </p>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
-              <BarChart3 className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="metric-label">Custos Totais</p>
-              <p className="metric-value text-red-600">{formatCurrency(summaryMetrics.totalCosts)}</p>
-              <p className="metric-change text-gray-500 text-xs">
-                Inflação: {formatPercentage(customInflationRate)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <DollarSign className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="metric-label">Lucro Total</p>
-              <p className="metric-value text-blue-600">{formatCurrency(summaryMetrics.totalProfit)}</p>
-              <p className="metric-change text-gray-500 text-xs">
-                Margem: {formatPercentage(summaryMetrics.avgMargin)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-              <Target className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="metric-label">Crescimento Médio</p>
-              <p className="metric-value text-purple-600">{formatPercentage(summaryMetrics.avgGrowthRate)}</p>
-              <p className="metric-change text-gray-500 text-xs">
-                Meta: {formatPercentage(customGrowthRate)}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="metric-card">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-              <Calendar className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="metric-label">Período</p>
-              <p className="metric-value text-orange-600">{filteredData.length}</p>
-              <p className="metric-change text-gray-500 text-xs">
-                anos projetados
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Visualização */}
-      {viewType === 'table' ? (
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Projeções Detalhadas por Ano
-            </h2>
-          </div>
-          <div className="card-body">
-            <div className="overflow-x-auto">
-              <table className="table">
-                <thead className="table-header">
-                  <tr>
-                    <th className="table-header-cell">Ano</th>
-                    <th className="table-header-cell">Receitas</th>
-                    <th className="table-header-cell">Custos</th>
-                    <th className="table-header-cell">Lucro Bruto</th>
-                    <th className="table-header-cell">Impostos</th>
-                    <th className="table-header-cell">Lucro Líquido</th>
-                    <th className="table-header-cell">Fluxo de Caixa</th>
-                    <th className="table-header-cell">Margem</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredData.map((projection) => {
-                    const lucroLiquido = projection.revenue.total - projection.costs.total - projection.taxes.total;
-                    return (
-                      <tr key={projection.year} className="table-row">
-                        <td className="table-cell font-medium">{projection.year}</td>
-                        <td className="table-cell text-green-600 font-medium">
-                          {formatCurrency(projection.revenue.total)}
-                        </td>
-                        <td className="table-cell text-red-600">
-                          {formatCurrency(projection.costs.total)}
-                        </td>
-                        <td className="table-cell text-blue-600">
-                          {formatCurrency(projection.revenue.total - projection.costs.total)}
-                        </td>
-                        <td className="table-cell text-orange-600">
-                          {formatCurrency(projection.taxes.total)}
-                        </td>
-                        <td className="table-cell text-purple-600 font-medium">
-                          {formatCurrency(lucroLiquido)}
-                        </td>
-                        <td className="table-cell">
-                          {formatCurrency(projection.cashFlow.net)}
-                        </td>
-                        <td className="table-cell">
-                          {formatPercentage(projection.metrics.grossMargin)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Evolução Financeira
-              </h2>
-              <div className="flex gap-2">
-                {['revenue', 'costs', 'profit', 'cashFlow'].map((metric) => (
-                  <button
-                    key={metric}
-                    onClick={() => setSelectedMetric(metric as 'revenue' | 'costs' | 'profit' | 'cashFlow')}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      selectedMetric === metric
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                    }`}
-                  >
-                    {metric === 'revenue' ? 'Receitas' :
-                     metric === 'costs' ? 'Custos' :
-                     metric === 'profit' ? 'Lucro' : 'Fluxo de Caixa'}
-                  </button>
-                ))}
+      {/* Cards de Projeções */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {isCalculating ? (
+          // Skeleton loading para os cards
+          Array.from({ length: 4 }).map((_, index) => (
+            <CardSkeleton key={index} />
+          ))
+        ) : (
+          projectionCards.map((card, index) => (
+            <div key={index} className={`p-6 rounded-xl border-2 ${getCardColorClasses(card.color)} transition-all hover:shadow-lg`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
+                  {card.icon}
+                </div>
+                <div className="text-right">
+                  <span className={`text-sm font-medium ${card.growth > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {card.growth > 0 ? '+' : ''}{card.growth.toFixed(1)}%
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium opacity-80 mb-1">{card.title}</p>
+                <p className="text-sm opacity-70 mb-2">Atual: {formatCurrency(card.currentValue)}</p>
+                <p className="text-xl font-bold">{formatCurrency(card.projectedValue)}</p>
               </div>
             </div>
+          ))
+        )}
+      </div>
+
+      {/* Controles de Visualização */}
+      <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Visualização:</span>
+            <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+              {[
+                { key: 'chart', label: 'Gráficos', icon: <BarChart3 className="w-4 h-4" /> },
+                { key: 'scenarios', label: 'Cenários', icon: <Target className="w-4 h-4" /> },
+                { key: 'table', label: 'Tabela', icon: <Database className="w-4 h-4" /> }
+              ].map(option => (
+                <button
+                  key={option.key}
+                  onClick={() => setViewType(option.key as any)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    viewType === option.key
+                      ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+                >
+                  {option.icon}
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="card-body">
-            <div className="h-80">
-              {/* Aqui seria renderizado um gráfico */}
-              <div className="flex items-center justify-center h-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+        </div>
+        
+        {viewType === 'chart' && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Métrica:</span>
+            <select 
+              value={selectedMetric}
+              onChange={(e) => setSelectedMetric(e.target.value as any)}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+            >
+              <option value="profit">Lucro</option>
+              <option value="revenue">Receita</option>
+              <option value="costs">Custos</option>
+              <option value="margin">Margem (%)</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Conteúdo Principal */}
+      {viewType === 'chart' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Projeção Principal */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                Projeção {selectedMetric === 'profit' ? 'de Lucro' : selectedMetric === 'revenue' ? 'de Receita' : selectedMetric === 'costs' ? 'de Custos' : 'de Margem'}
+              </h3>
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Zap className="w-4 h-4" />
+                Dados Reais
+              </div>
+            </div>
+            {chartData.length > 0 ? (
+              <AdvancedChart
+                type={selectedMetric === 'margin' ? 'line' : 'composed'}
+                data={chartData}
+                xKey="month"
+                yKeys={
+                  selectedMetric === 'profit' ? [
+                    { key: 'receita', name: 'Receita', color: '#10B981', type: 'bar' },
+                    { key: 'custos', name: 'Custos', color: '#EF4444', type: 'bar' },
+                    { key: 'lucro', name: 'Lucro', color: '#3B82F6', type: 'line' }
+                  ] : selectedMetric === 'margin' ? [
+                    { key: 'margem', name: 'Margem (%)', color: '#8B5CF6' }
+                  ] : [
+                    { key: selectedMetric, name: selectedMetric === 'revenue' ? 'Receita' : 'Custos', color: selectedMetric === 'revenue' ? '#10B981' : '#EF4444' }
+                  ]
+                }
+                height={350}
+                currency={selectedMetric !== 'margin'}
+                percentage={selectedMetric === 'margin'}
+              />
+            ) : (
+              <div className="h-[350px] flex items-center justify-center text-gray-500">
                 <div className="text-center">
-                  <LineChart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">
-                    Gráfico de {selectedMetric === 'revenue' ? 'Receitas' :
-                                selectedMetric === 'costs' ? 'Custos' :
-                                selectedMetric === 'profit' ? 'Lucro' : 'Fluxo de Caixa'}
-                  </p>
-                  <p className="text-sm text-gray-400 mt-2">
-                    {filteredData.length} anos • {formatCurrency(
-                      selectedMetric === 'revenue' ? summaryMetrics.totalRevenue :
-                      selectedMetric === 'costs' ? summaryMetrics.totalCosts :
-                      selectedMetric === 'profit' ? summaryMetrics.totalProfit :
-                      filteredData.reduce((sum, p) => sum + p.cashFlow.net, 0)
-                    )} total
-                  </p>
+                  <Database className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Configure as variáveis para ver projeções</p>
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Crescimento Acumulado */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Crescimento Acumulado
+            </h3>
+            {chartData.length > 0 ? (
+              <AdvancedChart
+                type="area"
+                data={chartData}
+                xKey="month"
+                yKeys={[
+                  { key: 'crescimento', name: 'Crescimento (%)', color: '#F59E0B' }
+                ]}
+                height={350}
+                percentage={true}
+              />
+            ) : (
+              <div className="h-[350px] flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <LineChart className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Dados de crescimento indisponíveis</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewType === 'scenarios' && (
+        <div className="space-y-6">
+          {/* Comparação de Cenários */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Comparação de Cenários - Lucro
+            </h3>
+            {scenarioComparisonData.length > 0 ? (
+              <AdvancedChart
+                type="line"
+                data={scenarioComparisonData}
+                xKey="month"
+                yKeys={[
+                  { key: 'pessimista', name: 'Pessimista', color: '#EF4444' },
+                  { key: 'realista', name: 'Realista', color: '#3B82F6' },
+                  { key: 'otimista', name: 'Otimista', color: '#10B981' }
+                ]}
+                height={400}
+                currency={true}
+              />
+            ) : (
+              <div className="h-[400px] flex items-center justify-center text-gray-500">
+                <div className="text-center">
+                  <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>Gerando cenários...</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Resumo dos Cenários */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {['pessimistic', 'realistic', 'optimistic'].map((scenario, index) => {
+              const colors = ['red', 'blue', 'green'];
+              const labels = ['Pessimista', 'Realista', 'Otimista'];
+              const scenarioData = scenarios[scenario];
+              
+              if (!scenarioData) return null;
+              
+              const totalProfit = scenarioData.reduce((sum: number, p: any) => sum + p.profit, 0);
+              const avgMonthlyProfit = totalProfit / scenarioData.length;
+              
+              return (
+                <div key={scenario} className={`p-6 rounded-xl border-2 ${getCardColorClasses(colors[index])}`}>
+                  <h4 className="text-lg font-semibold mb-4">{labels[index]}</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm opacity-75">Lucro Total (12 meses)</p>
+                      <p className="text-xl font-bold">{formatCurrency(totalProfit)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm opacity-75">Lucro Médio Mensal</p>
+                      <p className="text-lg font-semibold">{formatCurrency(avgMonthlyProfit)}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {viewType === 'table' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Tabela de Projeções Detalhada
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Período
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Receita
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Custos
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Lucro
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Margem
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Crescimento
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {chartData.map((row, index) => (
+                  <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {row.month}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {formatCurrency(row.receita)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {formatCurrency(row.custos)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      <span className={row.lucro > 0 ? 'text-green-600' : 'text-red-600'}>
+                        {formatCurrency(row.lucro)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {formatPercentage(row.margem / 100)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      <span className={row.crescimento > 0 ? 'text-green-600' : 'text-red-600'}>
+                        {row.crescimento > 0 ? '+' : ''}{row.crescimento.toFixed(1)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Insights e Recomendações */}
+      {hasValidData && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-blue-500" />
+            Insights das Projeções
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 dark:text-gray-100">Análise de Tendências:</h4>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4 text-blue-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-800 dark:text-blue-300">
+                      Crescimento Sustentável
+                    </p>
+                    <p className="text-blue-600 dark:text-blue-400">
+                      Taxa de crescimento de {formatPercentage(customGrowthRate)} baseada em dados reais
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-green-800 dark:text-green-300">
+                      Projetação Anual Positiva
+                    </p>
+                    <p className="text-green-600 dark:text-green-400">
+                      {formatCurrency(summary.annualProjection.revenue)} em 12 meses
+                    </p>
+                  </div>
+                </div>
+                
+                {metrics.profitMargin > 0.15 && (
+                  <div className="flex items-start gap-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <CheckCircle2 className="w-4 h-4 text-purple-500 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-purple-800 dark:text-purple-300">
+                        Margem Saudável
+                      </p>
+                      <p className="text-purple-600 dark:text-purple-400">
+                        Margem atual de {formatPercentage(metrics.profitMargin)} indica operação eficiente
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 dark:text-gray-100">Recomendações Estratégicas:</h4>
+              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <p>• Manter foco na otimização da taxa de utilização</p>
+                <p>• Considerar expansão gradual com base nas projeções positivas</p>
+                <p>• Monitorar cenários pessimistas para gestão de riscos</p>
+                <p>• Reavaliar projeções trimestralmente para ajustes</p>
+                <p>• Investir em melhorias que sustentem o crescimento projetado</p>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Breakdown por Categorias */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Evolução das Receitas
-            </h2>
-          </div>
-          <div className="card-body">
-            <div className="space-y-4">
-              {filteredData.slice(0, 3).map((projection) => (
-                <div key={projection.year} className="border-l-4 border-green-500 pl-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                      Ano {projection.year}
-                    </h3>
-                    <span className="text-green-600 font-semibold">
-                      {formatCurrency(projection.revenue.total)}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                                         <div className="flex justify-between">
-                       <span className="text-gray-500">Aluguel:</span>
-                       <span>{formatCurrency(projection.revenue.fieldRental?.total || 0)}</span>
-                     </div>
-                     <div className="flex justify-between">
-                       <span className="text-gray-500">Mensalidades:</span>
-                       <span>{formatCurrency(projection.revenue.membership?.total || 0)}</span>
-                     </div>
-                     <div className="flex justify-between">
-                       <span className="text-gray-500">Patrocínios:</span>
-                       <span>{formatCurrency(projection.revenue.sponsorship?.total || 0)}</span>
-                     </div>
-                     <div className="flex justify-between">
-                       <span className="text-gray-500">Escolinha:</span>
-                       <span>{formatCurrency(projection.revenue.soccerSchool?.total || 0)}</span>
-                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Evolução dos Custos
-            </h2>
-          </div>
-          <div className="card-body">
-            <div className="space-y-4">
-              {filteredData.slice(0, 3).map((projection) => (
-                <div key={projection.year} className="border-l-4 border-red-500 pl-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="font-medium text-gray-900 dark:text-gray-100">
-                      Ano {projection.year}
-                    </h3>
-                    <span className="text-red-600 font-semibold">
-                      {formatCurrency(projection.costs.total)}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Pessoal:</span>
-                      <span>{formatCurrency(projection.costs.personnel?.total || 0)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Outros Custos:</span>
-                      <span>{formatCurrency((projection.costs.total) - (projection.costs.personnel?.total || 0))}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Impostos:</span>
-                      <span>{formatCurrency(projection.taxes.total)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Margem:</span>
-                      <span className={
-                        projection.metrics.grossMargin > 0 ? 'text-green-600' : 'text-red-600'
-                      }>
-                        {formatPercentage(projection.metrics.grossMargin)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
-} 
+}

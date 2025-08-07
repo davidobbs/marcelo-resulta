@@ -40,6 +40,8 @@ export const MARKETS: Record<string, Market> = {
     socialContribution: 0.09, // CSLL
     pisCofins: 0.0365, // PIS/COFINS sobre faturamento
     issRate: 0.05, // ISS sobre serviços
+    vatRate: 0, // Não aplicável diretamente no Simples Nacional
+    socialSecurity: 0.20, // INSS
     growthPotential: 0.15, // Potencial de crescimento anual
     marketSizeFactor: 1.0, // Fator de tamanho de mercado (base)
     competitionLevel: 'Alto',
@@ -65,6 +67,9 @@ export const MARKETS: Record<string, Market> = {
     corporateTax: 0.25,
     vatRate: 0.20, // IVA médio
     socialSecurity: 0.15, // Contribuições sociais
+    socialContribution: 0, // Não aplicável
+    pisCofins: 0, // Não aplicável
+    issRate: 0, // Não aplicável
     growthPotential: 0.08, // Crescimento mais moderado
     marketSizeFactor: 2.5, // Mercado maior
     competitionLevel: 'Médio',
@@ -89,6 +94,10 @@ export const MARKETS: Record<string, Market> = {
     depreciationRate: 0.12, // Depreciação acelerada pelo clima
     corporateTax: 0.09, // Imposto corporativo recentemente introduzido
     vatRate: 0.05, // VAT
+    socialSecurity: 0, // Não aplicável
+    socialContribution: 0, // Não aplicável
+    pisCofins: 0, // Não aplicável
+    issRate: 0, // Não aplicável
     growthPotential: 0.12, // Alto potencial de crescimento
     marketSizeFactor: 1.8, // Mercado em crescimento
     competitionLevel: 'Baixo', // Mercado em desenvolvimento
@@ -289,4 +298,4 @@ export const LOCAL_STORAGE_KEYS = {
   userPreferences: 'club-finance-pilot:user-preferences',
   calculations: 'club-finance-pilot:calculations',
   theme: 'club-finance-pilot:theme',
-}; 
+};
